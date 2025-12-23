@@ -14,26 +14,47 @@ const notesRoutes = require('./routes/notesRoutes');
 const app = express();
 
 // ============================================================
-// CORS Configuration - MUST BE FIRST BEFORE ANYTHING ELSE
+// CORS Configuration - BULLETPROOF for Vercel
 // ============================================================
-const corsOptions = {
-  origin: [
-    'https://mydailytasktracker.netlify.app',  // Production frontend
-    'http://localhost:5173',                    // Vite local dev
-    'http://localhost:3000',                    // React local dev
-    'http://127.0.0.1:5173'                     // Vite local dev alt
-  ],
+
+// Allowed origins
+const allowedOrigins = [
+  'https://mydailytasktracker.netlify.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:5173'
+];
+
+// Manual CORS headers middleware - runs on EVERY request
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  
+  // Check if origin is allowed or allow all in development
+  if (allowedOrigins.includes(origin) || !origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', 'https://mydailytasktracker.netlify.app');
+  }
+  
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, X-CSRF-Token');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Max-Age', '86400');
+  
+  // Handle preflight
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
+  next();
+});
+
+// Also use cors package as backup
+app.use(cors({
+  origin: allowedOrigins,
   credentials: true,
-  optionsSuccessStatus: 200,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'X-CSRF-Token']
-};
-
-// Apply CORS - MUST be before routes
-app.use(cors(corsOptions));
-
-// Handle preflight OPTIONS requests
-app.options('*', cors(corsOptions));
+  optionsSuccessStatus: 200
+}));
 
 // Body parser middleware
 app.use(express.json());
