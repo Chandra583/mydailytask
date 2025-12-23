@@ -16,8 +16,36 @@ const app = express();
 // Connect to MongoDB
 connectDB();
 
+// ============================================================
+// CORS Configuration
+// ============================================================
+// Allowed origins for CORS (add your frontend URLs here)
+const allowedOrigins = [
+  'http://localhost:5173',           // Vite local dev
+  'http://localhost:3000',           // React local dev
+  'http://127.0.0.1:5173',           // Vite local dev alt
+  'https://mydailytasktracker.netlify.app', // Production frontend (Netlify)
+];
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      callback(null, true); // Allow all for now, remove in strict mode
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
