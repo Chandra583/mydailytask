@@ -13,32 +13,34 @@ const notesRoutes = require('./routes/notesRoutes');
 // Initialize express app
 const app = express();
 
-// Connect to MongoDB
-connectDB();
-
 // ============================================================
-// CORS Configuration - MUST BE BEFORE OTHER MIDDLEWARE
+// CORS Configuration - MUST BE FIRST BEFORE ANYTHING ELSE
 // ============================================================
+const corsOptions = {
+  origin: [
+    'https://mydailytasktracker.netlify.app',  // Production frontend
+    'http://localhost:5173',                    // Vite local dev
+    'http://localhost:3000',                    // React local dev
+    'http://127.0.0.1:5173'                     // Vite local dev alt
+  ],
+  credentials: true,
+  optionsSuccessStatus: 200,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'X-CSRF-Token']
+};
 
-// Simple CORS - Allow all origins (for debugging)
-app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
-  credentials: false // Set to false when using origin: '*'
-}));
+// Apply CORS - MUST be before routes
+app.use(cors(corsOptions));
 
-// Handle preflight requests explicitly
-app.options('*', (req, res) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
-  res.sendStatus(200);
-});
+// Handle preflight OPTIONS requests
+app.options('*', cors(corsOptions));
 
-// Middleware
+// Body parser middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Connect to MongoDB
+connectDB();
 
 // API Routes
 app.use('/api/auth', authRoutes);

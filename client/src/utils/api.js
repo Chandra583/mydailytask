@@ -23,8 +23,8 @@ import axios from 'axios';
 // LOCAL DEVELOPMENT
 // const API_BASE_URL = 'http://localhost:5000/api';
 
-// AUTO-DETECT (Uses environment variable, falls back to localhost)
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// AUTO-DETECT (Uses environment variable, falls back to production URL)
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://mydailytask-3lyooij1s-chandrashekhargowdas-projects.vercel.app/api';
 
 // ============================================================
 
