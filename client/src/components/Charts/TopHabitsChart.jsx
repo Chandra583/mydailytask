@@ -21,7 +21,7 @@ const RANK_CONFIG = [
 
 /**
  * Top Tasks Chart - Daily View
- * Modern 2025 design with Lucide icons and glassmorphism
+ * Modern2026 design with Lucide icons and glassmorphism
  */
 const TopHabitsChart = () => {
   const { habits, dailyProgress } = useHabit();

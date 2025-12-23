@@ -29,13 +29,13 @@ const Dashboard = () => {
   const { user } = useAuth();
   const [showSecretSanta, setShowSecretSanta] = useState(false);
 
-  // Check if user is Nagashree and should see the Secret Santa banner
+  // Check if user is Naagamma and should see the Secret Santa banner
   useEffect(() => {
     if (user?.email) {
-      const isNagashree = user.email.toLowerCase() === 'naagu@gmail.com';
+      const isNaagamma = user.email.toLowerCase() === 'naagu@gmail.com';
       const bannerShown = localStorage.getItem('secretSantaBannerShown_naagu');
 
-      if (isNagashree && !bannerShown) {
+      if (isNaagamma && !bannerShown) {
         // Show banner after a short delay for better UX
         const timer = setTimeout(() => {
           setShowSecretSanta(true);
@@ -47,7 +47,7 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-primary-dark">
-      {/* Secret Santa Banner - Only for Nagashree */}
+      {/* Secret Santa Banner - Only for Naagamma */}
       {showSecretSanta && (
         <SecretSantaBanner onClose={() => setShowSecretSanta(false)} />
       )}

@@ -4,7 +4,7 @@ import { Plus, Sparkles, X, Check, Palette } from 'lucide-react';
 
 /**
  * Floating Add Task Button with Modal
- * Modern 2025 design with Lucide icons and glassmorphism
+ * Modern2026 design with Lucide icons and glassmorphism
  */
 const AddHabitButton = () => {
   const { addHabit } = useHabit();

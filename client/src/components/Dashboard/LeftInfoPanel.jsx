@@ -28,7 +28,7 @@ const PERIOD_ICONS = {
 
 /**
  * Left Info Panel Component - Daily View
- * Modern 2025 design with glassmorphism and Lucide icons
+ * Modern2026 design with glassmorphism and Lucide icons
  */
 const LeftInfoPanel = () => {
   const { 

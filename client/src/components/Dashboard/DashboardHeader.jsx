@@ -25,7 +25,7 @@ const PERIOD_ICONS = {
 
 /**
  * Daily Dashboard Header Component
- * Modern 2025 design with Lucide icons and glassmorphism
+ * Modern2026 design with Lucide icons and glassmorphism
  */
 const DashboardHeader = () => {
   const { 

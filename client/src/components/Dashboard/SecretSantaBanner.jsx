@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 /**
  * Romantic Secret Santa Surprise Banner
- * Shows only for Nagashree (naagu@gmail.com) and only once
+ * Shows only for Naagamma (naagu@gmail.com) and only once
  * Multi-step reveal with beautiful animations
  */
 const SecretSantaBanner = ({ onClose }) => {
@@ -232,7 +232,7 @@ const SecretSantaBanner = ({ onClose }) => {
                           transition={{ delay: 0.5 }}
                           className="text-2xl font-semibold"
                         >
-                          Hey Nagashree! 🎉
+                          My Dear Naagamma!😂😂 
                         </motion.p>
                       </div>
 
@@ -279,7 +279,7 @@ const SecretSantaBanner = ({ onClose }) => {
                         transition={{ delay: 1.2 }}
                         className="text-sm text-white/80"
                       >
-                        🎄 Merry Christmas & Happy New Year 2025! ✨
+                        🎄 Merry Christmas & Happy New Year2026! ✨
                       </motion.p>
                     </motion.div>
                   )}
@@ -312,7 +312,7 @@ const SecretSantaBanner = ({ onClose }) => {
                         className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/30 shadow-xl text-left space-y-4"
                       >
                         <p className="text-lg leading-relaxed font-semibold text-yellow-300">
-                          "Dear Nagashree, 🎄
+                          "Dear Naagamma, 🎄
                         </p>
 
                         <p className="text-base leading-relaxed">
@@ -342,7 +342,7 @@ const SecretSantaBanner = ({ onClose }) => {
                           transition={{ delay: 1.2 }}
                           className="text-center font-bold text-lg pt-2"
                         >
-                          — Your Secret Santa 🎅✨"
+                          — Your Secret Santa(Chandra😎) 🎅✨"
                         </motion.p>
                       </motion.div>
 
@@ -396,7 +396,7 @@ const SecretSantaBanner = ({ onClose }) => {
                         className="bg-white text-pink-600 font-bold px-8 py-3 rounded-full hover:bg-yellow-300 hover:text-rose-600 transition-all duration-300 shadow-xl flex items-center gap-2 mx-auto group"
                       >
                         <PartyPopper size={20} className="group-hover:rotate-12 transition-transform" />
-                        <span>Thank You! 💖</span>
+                        <span>Thank You! 🥰💖</span>
                       </motion.button>
 
                       {/* Footer */}

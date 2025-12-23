@@ -4,7 +4,7 @@ import { Flame, Calendar, Zap, Award, Trophy, Sparkles, Info } from 'lucide-reac
 
 /**
  * Active Streaks Component
- * Modern 2025 design with Lucide icons and glassmorphism
+ * Modern2026 design with Lucide icons and glassmorphism
  */
 const ActiveStreaks = () => {
   const { streaks, habits } = useHabit();

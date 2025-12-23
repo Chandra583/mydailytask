@@ -22,7 +22,7 @@ const PERIOD_ICONS = {
 
 /**
  * Daily Progress Trend Chart
- * Modern 2025 design with Lucide icons and glassmorphism
+ * Modern2026 design with Lucide icons and glassmorphism
  */
 const DailyProgressTrendChart = () => {
   const { dailyStats } = useHabit();

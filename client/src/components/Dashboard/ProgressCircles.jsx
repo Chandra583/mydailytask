@@ -99,7 +99,7 @@ const ModernProgressRing = ({ percentage, color, gradientId, size = 120, strokeW
 
 /**
  * Progress Circles Component - Daily View
- * Modern 2025 design with animated SVG rings
+ * Modern2026 design with animated SVG rings
  */
 const ProgressCircles = () => {
   const { dailyStats } = useHabit();

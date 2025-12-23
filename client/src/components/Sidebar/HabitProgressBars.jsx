@@ -12,7 +12,7 @@ const PERIOD_ICONS = {
 
 /**
  * Task Progress Bars - Daily View
- * Modern 2025 design with Lucide icons and glassmorphism
+ * Modern2026 design with Lucide icons and glassmorphism
  */
 const HabitProgressBars = () => {
   const { habits, dailyProgress } = useHabit();

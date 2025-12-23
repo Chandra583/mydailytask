@@ -13,7 +13,7 @@ const PERIOD_ICONS = {
 
 /**
  * Smart Calendar Component
- * Modern 2025 design with glassmorphism and Lucide icons
+ * Modern2026 design with glassmorphism and Lucide icons
  */
 const SmartCalendar = () => {
   const { 
