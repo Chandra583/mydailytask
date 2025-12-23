@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import DashboardHeader from '../components/Dashboard/DashboardHeader';
 import ProgressCircles from '../components/Dashboard/ProgressCircles';
 import DailyProgressTrendChart from '../components/Charts/DailyProgressTrendChart';
@@ -18,14 +19,39 @@ import HourlyActivityHeatmap from '../components/Charts/HourlyActivityHeatmap';
 import GoalsVsActualChart from '../components/Charts/GoalsVsActualChart';
 import NotesSection from '../components/Dashboard/NotesSection';
 import AddHabitButton from '../components/Dashboard/AddHabitButton';
+import SecretSantaBanner from '../components/Dashboard/SecretSantaBanner';
 
 /**
  * Complete Daily Dashboard Page
  * Full-featured view with all charts and visualizations
  */
 const Dashboard = () => {
+  const { user } = useAuth();
+  const [showSecretSanta, setShowSecretSanta] = useState(false);
+
+  // Check if user is Nagashree and should see the Secret Santa banner
+  useEffect(() => {
+    if (user?.email) {
+      const isNagashree = user.email.toLowerCase() === 'naagu@gmail.com';
+      const bannerShown = localStorage.getItem('secretSantaBannerShown_naagu');
+
+      if (isNagashree && !bannerShown) {
+        // Show banner after a short delay for better UX
+        const timer = setTimeout(() => {
+          setShowSecretSanta(true);
+        }, 1500);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [user]);
+
   return (
     <div className="min-h-screen bg-primary-dark">
+      {/* Secret Santa Banner - Only for Nagashree */}
+      {showSecretSanta && (
+        <SecretSantaBanner onClose={() => setShowSecretSanta(false)} />
+      )}
+
       {/* Header */}
       <DashboardHeader />
 
