@@ -1,0 +1,288 @@
+import React, { useState, useEffect } from 'react';
+import { useHabit, TIME_PERIODS, getCurrentTimePeriod } from '../../context/HabitContext';
+import { format } from 'date-fns';
+import { 
+  ClipboardList, 
+  CheckCircle2, 
+  Clock, 
+  Flame,
+  Award,
+  Target,
+  TrendingUp,
+  BarChart3,
+  Sun,
+  Sunrise,
+  Sunset,
+  Moon,
+  Calendar,
+  Zap
+} from 'lucide-react';
+
+// Map period IDs to Lucide icons
+const PERIOD_ICONS = {
+  morning: Sun,
+  afternoon: Sunrise,
+  evening: Sunset,
+  night: Moon,
+};
+
+/**
+ * Left Info Panel Component - Daily View
+ * Modern 2025 design with glassmorphism and Lucide icons
+ */
+const LeftInfoPanel = () => {
+  const { 
+    habits, 
+    dailyStats, 
+    selectedDate, 
+    getFormattedDate 
+  } = useHabit();
+
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const currentPeriod = getCurrentTimePeriod();
+  const periodInfo = TIME_PERIODS[currentPeriod];
+  const CurrentPeriodIcon = PERIOD_ICONS[currentPeriod];
+
+  // Update time every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Calculate insights
+  const getBestTimePeriod = () => {
+    const periods = ['morning', 'afternoon', 'evening', 'night'];
+    let best = periods[0];
+    let maxValue = dailyStats?.morning || 0;
+    
+    periods.forEach(p => {
+      if ((dailyStats?.[p] || 0) > maxValue) {
+        maxValue = dailyStats?.[p] || 0;
+        best = p;
+      }
+    });
+    
+    return { period: TIME_PERIODS[best], value: maxValue };
+  };
+
+  const getWorstTimePeriod = () => {
+    const periods = ['morning', 'afternoon', 'evening', 'night'];
+    let worst = periods[0];
+    let minValue = dailyStats?.morning || 0;
+    
+    periods.forEach(p => {
+      if ((dailyStats?.[p] || 0) < minValue) {
+        minValue = dailyStats?.[p] || 0;
+        worst = p;
+      }
+    });
+    
+    return { period: TIME_PERIODS[worst], value: minValue };
+  };
+
+  const bestPeriod = getBestTimePeriod();
+  const worstPeriod = getWorstTimePeriod();
+  const BestIcon = PERIOD_ICONS[bestPeriod.period.id];
+  const WorstIcon = PERIOD_ICONS[worstPeriod.period.id];
+
+  return (
+    <div className="space-y-4">
+      {/* Task Tracker Stats Box */}
+      <div className="glass-card p-5 hover-lift">
+        <h3 className="section-title mb-4 flex items-center gap-2">
+          <ClipboardList size={18} className="text-accent-pink" />
+          TASK TRACKER
+        </h3>
+
+        <div className="space-y-4">
+          {/* Today's Date */}
+          <div className="flex justify-between items-center">
+            <span className="label-text flex items-center gap-2">
+              <Calendar size={14} className="text-gray-500" />
+              Today's Date
+            </span>
+            <span className="text-white font-semibold text-sm">{getFormattedDate()}</span>
+          </div>
+
+          {/* Current Time */}
+          <div className="flex justify-between items-center">
+            <span className="label-text flex items-center gap-2">
+              <Clock size={14} className="text-gray-500" />
+              Current Time
+            </span>
+            <span className="text-white font-bold text-sm font-mono tabular-nums">
+              {format(currentTime, 'h:mm:ss a')}
+            </span>
+          </div>
+
+          {/* Current Period */}
+          <div className="flex justify-between items-center">
+            <span className="label-text flex items-center gap-2">
+              <Zap size={14} className="text-gray-500" />
+              Time Period
+            </span>
+            <span 
+              className="badge text-xs font-semibold"
+              style={{ 
+                backgroundColor: `${periodInfo.color}25`, 
+                color: periodInfo.color,
+                border: `1px solid ${periodInfo.color}40`
+              }}
+            >
+              <CurrentPeriodIcon size={12} />
+              {periodInfo.name}
+            </span>
+          </div>
+
+          <div className="divider my-3"></div>
+
+          {/* Daily Tasks Count */}
+          <div className="flex justify-between items-center">
+            <span className="label-text">Daily Tasks</span>
+            <span className="stat-number text-xl">{habits.length}</span>
+          </div>
+
+          {/* Trackable Cells */}
+          <div className="flex justify-between items-center">
+            <span className="label-text">Trackable Cells</span>
+            <span className="stat-number text-xl text-gray-400">{habits.length * 4}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Completed / Remaining Cards */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="glass-card p-4 border-l-4 border-emerald-500 hover-lift stagger-item">
+          <div className="flex items-center gap-2 mb-2">
+            <CheckCircle2 size={16} className="text-emerald-500" />
+            <span className="text-emerald-400 text-xs font-bold uppercase tracking-wide">Completed</span>
+          </div>
+          <div className="stat-number text-2xl text-white">{dailyStats?.completed || 0}</div>
+          <div className="badge-success text-[10px] mt-2">100% done</div>
+        </div>
+        
+        <div className="glass-card p-4 border-l-4 border-amber-500 hover-lift stagger-item">
+          <div className="flex items-center gap-2 mb-2">
+            <Clock size={16} className="text-amber-500" />
+            <span className="text-amber-400 text-xs font-bold uppercase tracking-wide">Remaining</span>
+          </div>
+          <div className="stat-number text-2xl text-white">{dailyStats?.remaining || 0}</div>
+          <div className="badge-warning text-[10px] mt-2">&lt;100%</div>
+        </div>
+      </div>
+
+      {/* Quick Insights */}
+      <div className="glass-card p-5 hover-lift">
+        <h3 className="section-title mb-4 flex items-center gap-2">
+          <Flame size={18} className="text-orange-500" />
+          QUICK INSIGHTS
+        </h3>
+
+        <div className="space-y-3">
+          {/* Best Period */}
+          <div 
+            className="glass-card-light p-4 rounded-xl border-l-4 transition-all hover:scale-[1.02]"
+            style={{ borderLeftColor: bestPeriod.period.color }}
+          >
+            <div className="flex items-center gap-2 text-white font-medium text-sm">
+              <Award size={16} style={{ color: bestPeriod.period.color }} />
+              <span>Best time: </span>
+              <span style={{ color: bestPeriod.period.color }}>{bestPeriod.period.name}</span>
+            </div>
+            <div className="flex items-center gap-2 mt-2">
+              <BestIcon size={14} style={{ color: bestPeriod.period.color }} />
+              <span className="text-gray-400 text-xs">
+                {bestPeriod.value}% average completion
+              </span>
+            </div>
+          </div>
+
+          {/* Needs Focus */}
+          <div 
+            className="glass-card-light p-4 rounded-xl border-l-4 transition-all hover:scale-[1.02]"
+            style={{ borderLeftColor: worstPeriod.period.color }}
+          >
+            <div className="flex items-center gap-2 text-white font-medium text-sm">
+              <Target size={16} className="text-red-400" />
+              <span>Focus needed: </span>
+              <span style={{ color: worstPeriod.period.color }}>{worstPeriod.period.name}</span>
+            </div>
+            <div className="flex items-center gap-2 mt-2">
+              <WorstIcon size={14} style={{ color: worstPeriod.period.color }} />
+              <span className="text-gray-400 text-xs">
+                Only {worstPeriod.value}% completion
+              </span>
+            </div>
+          </div>
+
+          {/* Overall Progress */}
+          <div className="glass-card-light p-4 rounded-xl border-l-4 border-accent-pink transition-all hover:scale-[1.02]">
+            <div className="flex items-center gap-2 text-white font-medium text-sm">
+              <BarChart3 size={16} className="text-accent-pink" />
+              <span>Today's Progress</span>
+            </div>
+            <div className="flex items-center justify-between mt-2">
+              <span className="text-gray-400 text-xs">
+                Overall completion
+              </span>
+              <span className="text-accent-pink font-bold text-lg">{dailyStats?.overall || 0}%</span>
+            </div>
+            <div className="w-full bg-gray-700/50 rounded-full h-2 mt-3 overflow-hidden">
+              <div 
+                className="h-2 rounded-full transition-all duration-700 ease-out"
+                style={{ 
+                  width: `${dailyStats?.overall || 0}%`,
+                  background: 'linear-gradient(90deg, #e91e63, #ec4899)'
+                }}
+              ></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Time Period Legend */}
+      <div className="glass-card p-5 hover-lift">
+        <h3 className="section-title mb-4 flex items-center gap-2">
+          <Clock size={18} className="text-cyan-400" />
+          TIME PERIODS
+        </h3>
+        <div className="space-y-2">
+          {Object.values(TIME_PERIODS).map((period) => {
+            const Icon = PERIOD_ICONS[period.id];
+            const isActive = currentPeriod === period.id;
+            
+            return (
+              <div 
+                key={period.id}
+                className={`flex items-center justify-between p-3 rounded-xl transition-all duration-300 ${
+                  isActive ? 'ring-2 ring-white/30 scale-[1.02]' : 'hover:bg-white/5'
+                }`}
+                style={{ 
+                  backgroundColor: isActive ? `${period.color}25` : `${period.color}10`,
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div 
+                    className="w-8 h-8 rounded-lg flex items-center justify-center"
+                    style={{ backgroundColor: `${period.color}30` }}
+                  >
+                    <Icon size={16} style={{ color: period.color }} />
+                  </div>
+                  <span className="text-white text-sm font-medium">{period.name}</span>
+                </div>
+                <span className="text-gray-400 text-xs font-mono">
+                  {period.startHour === 22 ? '10 PM - 6 AM' : 
+                   `${period.startHour > 12 ? period.startHour - 12 : period.startHour} ${period.startHour >= 12 ? 'PM' : 'AM'} - ${period.endHour > 12 ? period.endHour - 12 : period.endHour} ${period.endHour >= 12 ? 'PM' : 'AM'}`}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default LeftInfoPanel;
