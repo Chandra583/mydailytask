@@ -1,7 +1,7 @@
 {
   "name": "habit-tracker-server",
   "version": "1.0.0",
-  "description": "Backend API for Monthly Habit Tracker Dashboard",
+  "description": "Backend API forDaily Task Tracker Dashboard",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

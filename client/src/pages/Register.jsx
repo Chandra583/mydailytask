@@ -59,7 +59,7 @@ const Register = () => {
         {/* Header */}
         <div className="text-center">
           <h1 className="text-4xl font-bold text-accent-pink mb-2">
-            Monthly Habit Tracker
+           Daily Task Tracker
           </h1>
           <h2 className="text-2xl font-semibold text-white">Create Account</h2>
           <p className="mt-2 text-gray-400">Start tracking your habits today</p>

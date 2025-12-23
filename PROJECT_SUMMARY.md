@@ -1,4 +1,4 @@
-# Monthly Habit Tracker - Complete File Structure
+#Daily Task Tracker - Complete File Structure
 
 ## ✅ Project Successfully Created!
 
@@ -242,6 +242,6 @@ VITE_API_URL=http://localhost:5000/api
 
 ## ✨ You're All Set!
 
-Your Monthly Habit Tracker Dashboard is ready to use. Start tracking your habits and building better routines!
+YourDaily Task Tracker Dashboard is ready to use. Start tracking your habits and building better routines!
 
 **Happy Coding! 🚀**

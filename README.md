@@ -1,4 +1,4 @@
-# Monthly Habit Tracker Dashboard - MERN Stack
+#Daily Task Tracker Dashboard - MERN Stack
 
 A full-stack habit tracking dashboard application built with the MERN stack (MongoDB, Express.js, React.js, Node.js). Track your daily habits with a beautiful dark-themed interface featuring heat maps, progress charts, and comprehensive analytics.
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 Installing Monthly Habit Tracker Dashboard"
+echo "🚀 InstallingDaily Task Tracker Dashboard"
 echo "=============================================="
 echo ""
 
