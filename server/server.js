@@ -17,35 +17,26 @@ const app = express();
 connectDB();
 
 // ============================================================
-// CORS Configuration
+// CORS Configuration - MUST BE BEFORE OTHER MIDDLEWARE
 // ============================================================
-// Allowed origins for CORS (add your frontend URLs here)
-const allowedOrigins = [
-  'http://localhost:5173',           // Vite local dev
-  'http://localhost:3000',           // React local dev
-  'http://127.0.0.1:5173',           // Vite local dev alt
-  'https://mydailytasktracker.netlify.app', // Production frontend (Netlify)
-];
 
-const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.log('CORS blocked origin:', origin);
-      callback(null, true); // Allow all for now, remove in strict mode
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-};
+// Simple CORS - Allow all origins (for debugging)
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  credentials: false // Set to false when using origin: '*'
+}));
+
+// Handle preflight requests explicitly
+app.options('*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
+  res.sendStatus(200);
+});
 
 // Middleware
-app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
