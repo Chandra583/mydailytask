@@ -9,6 +9,7 @@ const CompletionDistributionChart = () => {
   const { habits, dailyProgress } = useHabit();
 
   // Calculate distribution of tasks by completion level
+  // FIXED: If ANY time period is 100%, task is considered "100% Complete"
   const calculateDistribution = () => {
     const distribution = {
       complete: { count: 0, label: '100% Complete', color: '#4ade80', icon: '✓' },
@@ -20,16 +21,23 @@ const CompletionDistributionChart = () => {
 
     habits.forEach(habit => {
       const progress = dailyProgress[habit._id] || {};
-      const avgCompletion = Math.round(
-        ((progress.morning || 0) + (progress.afternoon || 0) + 
-         (progress.evening || 0) + (progress.night || 0)) / 4
-      );
+      const morning = progress.morning || 0;
+      const afternoon = progress.afternoon || 0;
+      const evening = progress.evening || 0;
+      const night = progress.night || 0;
 
-      if (avgCompletion === 100) distribution.complete.count++;
-      else if (avgCompletion >= 80) distribution.high.count++;
-      else if (avgCompletion >= 50) distribution.medium.count++;
-      else if (avgCompletion >= 20) distribution.low.count++;
-      else distribution.minimal.count++;
+      // Check if ANY period is 100% - task is complete
+      if (morning === 100 || afternoon === 100 || evening === 100 || night === 100) {
+        distribution.complete.count++;
+      } else {
+        // Use highest completion percentage for categorization
+        const maxCompletion = Math.max(morning, afternoon, evening, night);
+        
+        if (maxCompletion >= 80) distribution.high.count++;
+        else if (maxCompletion >= 50) distribution.medium.count++;
+        else if (maxCompletion >= 20) distribution.low.count++;
+        else distribution.minimal.count++;
+      }
     });
 
     return distribution;

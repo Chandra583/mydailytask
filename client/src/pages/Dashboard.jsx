@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import DashboardHeader from '../components/Dashboard/DashboardHeader';
-import ProgressCircles from '../components/Dashboard/ProgressCircles';
+// REMOVED: import ProgressCircles from '../components/Dashboard/ProgressCircles';
 import DailyProgressTrendChart from '../components/Charts/DailyProgressTrendChart';
 import DailyHabitGrid from '../components/Dashboard/DailyHabitGrid';
 import LeftInfoPanel from '../components/Dashboard/LeftInfoPanel';
@@ -57,8 +57,8 @@ const Dashboard = () => {
 
       {/* Main Content */}
       <div className="max-w-[1920px] mx-auto px-4 py-6">
-        {/* Progress Circles Row */}
-        <ProgressCircles />
+        {/* Progress Circles Row - REMOVED per UI cleanup */}
+        {/* <ProgressCircles /> */}
 
         {/* Daily Trend Chart - Full Width */}
         <div className="mt-6">

@@ -13,6 +13,7 @@ const PERIOD_ICONS = {
 /**
  * Task Progress Bars - Daily View
  * Modern2026 design with Lucide icons and glassmorphism
+ * FIXED: Shows actual average, not 100% when any period is complete
  */
 const HabitProgressBars = () => {
   const { habits, dailyProgress } = useHabit();
@@ -20,16 +21,33 @@ const HabitProgressBars = () => {
   // Calculate progress for each habit
   const habitProgress = habits.map(habit => {
     const progress = dailyProgress[habit._id] || {};
+    const morning = progress.morning || 0;
+    const afternoon = progress.afternoon || 0;
+    const evening = progress.evening || 0;
+    const night = progress.night || 0;
+
+    // Count how many cells are at 100%
+    let completedCells = 0;
+    if (morning === 100) completedCells++;
+    if (afternoon === 100) completedCells++;
+    if (evening === 100) completedCells++;
+    if (night === 100) completedCells++;
+    
+    // Task is fully complete only if ALL 4 periods are 100%
+    const isFullyComplete = completedCells === 4;
+    
+    // Calculate actual average
+    const average = Math.round((morning + afternoon + evening + night) / 4);
+    
     return {
       ...habit,
-      morning: progress.morning || 0,
-      afternoon: progress.afternoon || 0,
-      evening: progress.evening || 0,
-      night: progress.night || 0,
-      average: Math.round(
-        ((progress.morning || 0) + (progress.afternoon || 0) + 
-         (progress.evening || 0) + (progress.night || 0)) / 4
-      ),
+      morning,
+      afternoon,
+      evening,
+      night,
+      isFullyComplete,
+      completedCells,
+      average,
     };
   });
 
@@ -69,13 +87,14 @@ const HabitProgressBars = () => {
                 </div>
                 <span 
                   className={`badge text-xs font-bold ${
-                    habit.average >= 80 ? 'badge-success' :
+                    habit.isFullyComplete ? 'badge-success' :
                     habit.average >= 50 ? 'badge-warning' :
                     habit.average > 0 ? 'badge-error' :
                     'bg-gray-700 text-gray-400 border border-gray-600'
                   }`}
                 >
                   {habit.average}%
+                  {habit.isFullyComplete && <span className="ml-1">✓</span>}
                 </span>
               </div>
 

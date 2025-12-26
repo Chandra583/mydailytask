@@ -21,34 +21,49 @@ const RANK_CONFIG = [
 
 /**
  * Top Tasks Chart - Daily View
- * Modern2026 design with Lucide icons and glassmorphism
+ * RULE: Average of ONLY FILLED periods (periods > 0%)
+ * If ANY period is 100%, show 100% (task is complete)
  */
 const TopHabitsChart = () => {
   const { habits, dailyProgress } = useHabit();
 
-  // Calculate average completion for each habit
-  const habitAverages = habits.map(habit => {
+  // Calculate display value for each habit
+  const habitCompletions = habits.map(habit => {
     const progress = dailyProgress[habit._id] || {};
-    const avg = (
-      (progress.morning || 0) + 
-      (progress.afternoon || 0) + 
-      (progress.evening || 0) + 
-      (progress.night || 0)
-    ) / 4;
+    const morning = progress.morning || 0;
+    const afternoon = progress.afternoon || 0;
+    const evening = progress.evening || 0;
+    const night = progress.night || 0;
+    
+    // Check if task is complete (ANY period at 100%)
+    const isComplete = morning === 100 || afternoon === 100 || evening === 100 || night === 100;
+    
+    // Calculate display value
+    let displayValue;
+    if (isComplete) {
+      displayValue = 100;
+    } else {
+      // Average of ONLY FILLED periods (> 0%)
+      const filledPeriods = [morning, afternoon, evening, night].filter(p => p > 0);
+      displayValue = filledPeriods.length > 0 
+        ? Math.round(filledPeriods.reduce((sum, p) => sum + p, 0) / filledPeriods.length)
+        : 0;
+    }
     
     return {
       ...habit,
-      average: Math.round(avg),
-      morning: progress.morning || 0,
-      afternoon: progress.afternoon || 0,
-      evening: progress.evening || 0,
-      night: progress.night || 0,
+      displayValue,
+      isComplete,
+      morning,
+      afternoon,
+      evening,
+      night,
     };
   });
 
-  // Sort by average and take top 5
-  const topHabits = habitAverages
-    .sort((a, b) => b.average - a.average)
+  // Sort by displayValue and take top 5
+  const topHabits = habitCompletions
+    .sort((a, b) => b.displayValue - a.displayValue)
     .slice(0, 5);
 
   return (
@@ -99,14 +114,17 @@ const TopHabitsChart = () => {
                     </div>
                   </div>
                   
-                  {/* Percentage */}
+                  {/* Percentage - 100% if complete, otherwise average */}
                   <div className="text-right">
                     <span 
                       className="stat-number text-lg"
-                      style={{ color: habit.average >= 80 ? '#10b981' : habit.average >= 50 ? '#fbbf24' : '#f97316' }}
+                      style={{ color: habit.isComplete ? '#10b981' : habit.displayValue >= 50 ? '#fbbf24' : '#f97316' }}
                     >
-                      {habit.average}%
+                      {habit.displayValue}%
                     </span>
+                    {habit.isComplete && (
+                      <div className="text-[10px] text-green-400">✓ Complete</div>
+                    )}
                   </div>
                 </div>
                 
@@ -115,7 +133,7 @@ const TopHabitsChart = () => {
                   <div 
                     className="h-full rounded-full transition-all duration-700 ease-out"
                     style={{ 
-                      width: `${habit.average}%`,
+                      width: `${habit.displayValue}%`,
                       background: `linear-gradient(90deg, ${habit.color || '#e91e63'}, ${habit.color || '#e91e63'}99)`,
                       boxShadow: `0 0 10px ${habit.color || '#e91e63'}40`
                     }}

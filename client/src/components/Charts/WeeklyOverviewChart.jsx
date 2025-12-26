@@ -45,22 +45,29 @@ const WeeklyOverviewChart = () => {
     fetchHistoricalData();
   }, [fetchProgressForDate]);
 
-  // Calculate completion for a date based on actual progress
+  // Calculate completion for a date
+  // RULE: ANY period at 100% = task is COMPLETE
   const calculateCompletion = (dateKey) => {
     const progress = historicalProgress[dateKey];
     if (!progress || Object.keys(progress).length === 0) {
       return 0;
     }
     
-    let total = 0;
-    let count = 0;
+    let completedTasks = 0;
+    let totalTasks = 0;
     
     Object.values(progress).forEach(p => {
-      total += (p.morning || 0) + (p.afternoon || 0) + (p.evening || 0) + (p.night || 0);
-      count += 4;
+      totalTasks++;
+      // A task is complete if ANY period is 100%
+      if ((p.morning || 0) === 100 || 
+          (p.afternoon || 0) === 100 || 
+          (p.evening || 0) === 100 || 
+          (p.night || 0) === 100) {
+        completedTasks++;
+      }
     });
     
-    return count > 0 ? Math.round(total / count) : 0;
+    return totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
   };
 
   // Generate last 7 days data based on user start date
@@ -77,6 +84,7 @@ const WeeklyOverviewChart = () => {
       let completion = 0;
       if (!isBeforeStart) {
         if (isCurrentDay) {
+          // Use dailyStats for today (already calculated in HabitContext)
           completion = dailyStats?.overall || 0;
         } else {
           completion = calculateCompletion(dateKey);
@@ -167,7 +175,7 @@ const WeeklyOverviewChart = () => {
         </div>
         <div className="text-right">
           <div className="label-text">
-            {daysToShow < 7 ? `${daysToShow}-Day Avg` : 'Weekly Average'}
+            {daysToShow < 7 ? `${daysToShow}-Day` : '7-Day'} Completion
           </div>
           <div className="stat-number text-xl">{weeklyAverage}%</div>
         </div>
