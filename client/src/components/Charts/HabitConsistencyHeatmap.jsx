@@ -60,6 +60,7 @@ const HabitConsistencyHeatmap = () => {
   const topHabits = habits.slice(0, 8);
 
   // Get actual completion for a habit on a specific day
+  // Uses AVERAGE of all 4 periods for color coding
   const getHabitCompletion = (habitId, dateKey, isToday) => {
     let progress;
     
@@ -72,19 +73,23 @@ const HabitConsistencyHeatmap = () => {
     
     if (!progress) return 0;
     
+    const morning = progress.morning || 0;
+    const afternoon = progress.afternoon || 0;
+    const evening = progress.evening || 0;
+    const night = progress.night || 0;
+    
     // Calculate average across all time periods
-    const total = (progress.morning || 0) + (progress.afternoon || 0) + 
-                  (progress.evening || 0) + (progress.night || 0);
-    return Math.round(total / 4);
+    const average = Math.round((morning + afternoon + evening + night) / 4);
+    return average;
   };
 
-  // Get color based on completion
+  // Get color based on completion - using proper thresholds
   const getCellColor = (completion, isBeforeStart = false) => {
     if (isBeforeStart) return { bg: '#1e293b', text: '-', opacity: 0.3 };
-    if (completion >= 100) return { bg: '#4ade80', text: '✓', opacity: 1 };
-    if (completion >= 50) return { bg: '#fbbf24', text: '▓', opacity: 1 };
-    if (completion > 0) return { bg: '#fb923c', text: '░', opacity: 0.8 };
-    return { bg: '#374151', text: '○', opacity: 0.5 };
+    if (completion === 100) return { bg: '#4ade80', text: '✓', opacity: 1 };  // Green for 100%
+    if (completion >= 50) return { bg: '#fbbf24', text: '▓', opacity: 1 };   // Yellow for 50-99%
+    if (completion >= 1) return { bg: '#fb923c', text: '░', opacity: 0.8 };   // Orange for 1-49%
+    return { bg: '#374151', text: '○', opacity: 0.5 };                       // Gray for 0%
   };
 
   // Calculate overall completion per day

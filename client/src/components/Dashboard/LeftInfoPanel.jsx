@@ -33,6 +33,7 @@ const PERIOD_ICONS = {
 const LeftInfoPanel = () => {
   const { 
     habits, 
+    dailyProgress,
     dailyStats, 
     selectedDate, 
     getFormattedDate 
@@ -51,35 +52,68 @@ const LeftInfoPanel = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Calculate insights
+  // Calculate insights based on COMPLETION RATE (tasks at 100% / total tasks)
+  const getPeriodCompletionRate = (periodId) => {
+    if (habits.length === 0) return 0;
+    let completedTasks = 0;
+    habits.forEach(habit => {
+      const progress = dailyProgress[habit._id] || {};
+      if (progress[periodId] === 100) {
+        completedTasks++;
+      }
+    });
+    return Math.round((completedTasks / habits.length) * 100);
+  };
+
   const getBestTimePeriod = () => {
     const periods = ['morning', 'afternoon', 'evening', 'night'];
     let best = periods[0];
-    let maxValue = dailyStats?.morning || 0;
+    let maxRate = getPeriodCompletionRate(periods[0]);
     
     periods.forEach(p => {
-      if ((dailyStats?.[p] || 0) > maxValue) {
-        maxValue = dailyStats?.[p] || 0;
+      const rate = getPeriodCompletionRate(p);
+      if (rate > maxRate) {
+        maxRate = rate;
         best = p;
       }
     });
     
-    return { period: TIME_PERIODS[best], value: maxValue };
+    return { period: TIME_PERIODS[best], value: maxRate };
   };
 
   const getWorstTimePeriod = () => {
     const periods = ['morning', 'afternoon', 'evening', 'night'];
     let worst = periods[0];
-    let minValue = dailyStats?.morning || 0;
+    let minRate = getPeriodCompletionRate(periods[0]);
     
     periods.forEach(p => {
-      if ((dailyStats?.[p] || 0) < minValue) {
-        minValue = dailyStats?.[p] || 0;
+      const rate = getPeriodCompletionRate(p);
+      if (rate < minRate) {
+        minRate = rate;
         worst = p;
       }
     });
     
-    return { period: TIME_PERIODS[worst], value: minValue };
+    return { period: TIME_PERIODS[worst], value: minRate };
+  };
+
+  // Calculate today's overall progress
+  // RULE: ANY period at 100% = task is COMPLETE
+  const getTodayCompletionRate = () => {
+    if (habits.length === 0) return 0;
+    let completedTasks = 0;
+    habits.forEach(habit => {
+      const progress = dailyProgress[habit._id] || {};
+      const morning = progress.morning || 0;
+      const afternoon = progress.afternoon || 0;
+      const evening = progress.evening || 0;
+      const night = progress.night || 0;
+      // A task is COMPLETE if ANY period is 100%
+      if (morning === 100 || afternoon === 100 || evening === 100 || night === 100) {
+        completedTasks++;
+      }
+    });
+    return Math.round((completedTasks / habits.length) * 100);
   };
 
   const bestPeriod = getBestTimePeriod();
@@ -143,12 +177,6 @@ const LeftInfoPanel = () => {
             <span className="label-text">Daily Tasks</span>
             <span className="stat-number text-xl">{habits.length}</span>
           </div>
-
-          {/* Trackable Cells */}
-          <div className="flex justify-between items-center">
-            <span className="label-text">Trackable Cells</span>
-            <span className="stat-number text-xl text-gray-400">{habits.length * 4}</span>
-          </div>
         </div>
       </div>
 
@@ -194,7 +222,7 @@ const LeftInfoPanel = () => {
             <div className="flex items-center gap-2 mt-2">
               <BestIcon size={14} style={{ color: bestPeriod.period.color }} />
               <span className="text-gray-400 text-xs">
-                {bestPeriod.value}% average completion
+                {bestPeriod.value}% tasks completed
               </span>
             </div>
           </div>
@@ -212,7 +240,7 @@ const LeftInfoPanel = () => {
             <div className="flex items-center gap-2 mt-2">
               <WorstIcon size={14} style={{ color: worstPeriod.period.color }} />
               <span className="text-gray-400 text-xs">
-                Only {worstPeriod.value}% completion
+                Only {worstPeriod.value}% tasks completed
               </span>
             </div>
           </div>
@@ -225,7 +253,7 @@ const LeftInfoPanel = () => {
             </div>
             <div className="flex items-center justify-between mt-2">
               <span className="text-gray-400 text-xs">
-                Overall completion
+                Completed tasks
               </span>
               <span className="text-accent-pink font-bold text-lg">{dailyStats?.overall || 0}%</span>
             </div>

@@ -102,6 +102,10 @@ const toggleProgress = async (req, res) => {
  * @desc    Get daily progress for a specific date
  * @route   GET /api/progress/daily/:date
  * @access  Private
+ * 
+ * CRITICAL: This endpoint NEVER copies data from previous days.
+ * If no progress exists for the requested date, it returns an empty array.
+ * Frontend is responsible for initializing fresh progress (all zeros).
  */
 const getDailyProgress = async (req, res) => {
   try {
@@ -114,20 +118,24 @@ const getDailyProgress = async (req, res) => {
       });
     }
 
-    // Get all daily progress entries for this date
+    // Get ONLY progress entries for THIS SPECIFIC DATE
+    // DO NOT fetch or copy from any other date
     const progress = await DailyProgress.find({
       userId: req.user._id,
-      date
+      date: date  // Exact match - no date range, no fallback
     });
 
+    // Return what exists for this date (empty array if nothing)
+    // Frontend will initialize zeros for habits without progress
     res.json({
       date,
+      isNewDay: progress.length === 0,  // Flag to help frontend know this is fresh
       progress: progress.map(p => ({
         habitId: p.habitId,
-        morning: p.morning,
-        afternoon: p.afternoon,
-        evening: p.evening,
-        night: p.night
+        morning: p.morning || 0,
+        afternoon: p.afternoon || 0,
+        evening: p.evening || 0,
+        night: p.night || 0
       }))
     });
   } catch (error) {
@@ -212,16 +220,31 @@ const updateDailyProgress = async (req, res) => {
 };
 
 /**
+ * Helper: Get today's date key in LOCAL timezone (YYYY-MM-DD)
+ * CRITICAL: Must match frontend's getTodayDateKey() exactly
+ */
+const getLocalDateKey = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+/**
  * @desc    Get overall statistics
  * @route   GET /api/progress/stats
  * @access  Private
+ * 
+ * CRITICAL: Uses LOCAL timezone date, not UTC.
+ * This ensures stats match the user's actual day.
  */
 const getStats = async (req, res) => {
   try {
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1;
-    const today = now.toISOString().split('T')[0]; // YYYY-MM-DD format
+    // FIXED: Use local timezone, NOT UTC (toISOString uses UTC)
+    const today = getLocalDateKey(now);
 
     // Get active habits count
     const totalHabits = await Habit.countDocuments({ 

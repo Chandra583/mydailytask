@@ -13,12 +13,12 @@ const PERIOD_ICONS = {
 /**
  * Task Progress Bars - Daily View
  * Modern2026 design with Lucide icons and glassmorphism
+ * FIXED: Shows actual average, not 100% when any period is complete
  */
 const HabitProgressBars = () => {
   const { habits, dailyProgress } = useHabit();
 
   // Calculate progress for each habit
-  // FIXED: If ANY period is 100%, show 100% as average
   const habitProgress = habits.map(habit => {
     const progress = dailyProgress[habit._id] || {};
     const morning = progress.morning || 0;
@@ -26,8 +26,18 @@ const HabitProgressBars = () => {
     const evening = progress.evening || 0;
     const night = progress.night || 0;
 
-    // If any period is 100%, task is complete
-    const isComplete = morning === 100 || afternoon === 100 || evening === 100 || night === 100;
+    // Count how many cells are at 100%
+    let completedCells = 0;
+    if (morning === 100) completedCells++;
+    if (afternoon === 100) completedCells++;
+    if (evening === 100) completedCells++;
+    if (night === 100) completedCells++;
+    
+    // Task is fully complete only if ALL 4 periods are 100%
+    const isFullyComplete = completedCells === 4;
+    
+    // Calculate actual average
+    const average = Math.round((morning + afternoon + evening + night) / 4);
     
     return {
       ...habit,
@@ -35,9 +45,9 @@ const HabitProgressBars = () => {
       afternoon,
       evening,
       night,
-      isComplete,
-      // Show 100% if complete, otherwise show max completion
-      average: isComplete ? 100 : Math.max(morning, afternoon, evening, night),
+      isFullyComplete,
+      completedCells,
+      average,
     };
   });
 
@@ -77,13 +87,14 @@ const HabitProgressBars = () => {
                 </div>
                 <span 
                   className={`badge text-xs font-bold ${
-                    habit.average >= 80 ? 'badge-success' :
+                    habit.isFullyComplete ? 'badge-success' :
                     habit.average >= 50 ? 'badge-warning' :
                     habit.average > 0 ? 'badge-error' :
                     'bg-gray-700 text-gray-400 border border-gray-600'
                   }`}
                 >
                   {habit.average}%
+                  {habit.isFullyComplete && <span className="ml-1">✓</span>}
                 </span>
               </div>
 

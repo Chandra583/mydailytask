@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useHabit, TIME_PERIODS, getCurrentTimePeriod, PERCENTAGE_OPTIONS } from '../../context/HabitContext';
+import { CheckCircle2, Lock } from 'lucide-react';
 
 /**
  * Daily Habit Grid Component
  * 4 time period columns with percentage-based completion cells
+ * UPDATED: Added quick Complete button and disabled past time periods
  */
 const DailyHabitGrid = () => {
   const {
@@ -21,6 +23,20 @@ const DailyHabitGrid = () => {
   const currentPeriod = getCurrentTimePeriod();
 
   const timePeriods = Object.values(TIME_PERIODS);
+  
+  // Period order for reference
+  const periodOrder = ['morning', 'afternoon', 'evening', 'night'];
+
+  /**
+   * Check if a period is in the FUTURE (should be locked)
+   * Past and current periods are editable
+   * Future periods are locked
+   */
+  const isPeriodInFuture = (periodId) => {
+    const currentIndex = periodOrder.indexOf(currentPeriod);
+    const periodIndex = periodOrder.indexOf(periodId);
+    return periodIndex > currentIndex;
+  };
 
   const habitColors = [
     '#e91e63', '#00bcd4', '#ffc107', '#ff6b6b', '#7c4dff',
@@ -28,7 +44,22 @@ const DailyHabitGrid = () => {
   ];
 
   const handleCellClick = (habitId, period) => {
+    // Don't allow clicking on FUTURE periods (but past periods are ok)
+    if (isPeriodInFuture(period)) {
+      return;
+    }
     setSelectedCell({ habitId, period });
+  };
+
+  /**
+   * Quick Complete button - marks current period as 100%
+   */
+  const handleQuickComplete = async (habitId) => {
+    // Check if current period is already 100%
+    const currentProgress = getHabitProgress(habitId, currentPeriod);
+    if (currentProgress === 100) return;
+    
+    await updateHabitProgress(habitId, currentPeriod, 100);
   };
 
   const handlePercentageSelect = async (percentage) => {
@@ -77,23 +108,30 @@ const DailyHabitGrid = () => {
   };
 
   /**
-   * Calculate total completion for a habit across all periods
-   * FIXED: If ANY period is 100%, task is considered complete
+   * Calculate completion display for a habit
+   * RULE: Average of ONLY FILLED periods (periods > 0%)
+   * If ANY period is 100%, show 100% (task is complete)
    */
-  const getHabitTotal = (habitId) => {
+  const getHabitDisplayValue = (habitId) => {
     const progress = dailyProgress[habitId] || {};
     const morning = progress.morning || 0;
     const afternoon = progress.afternoon || 0;
     const evening = progress.evening || 0;
     const night = progress.night || 0;
 
-    // If any period is 100%, task is complete
+    // If ANY period is 100%, task is complete - show 100%
     if (morning === 100 || afternoon === 100 || evening === 100 || night === 100) {
       return 100;
     }
 
-    // Otherwise, use highest completion percentage
-    return Math.max(morning, afternoon, evening, night);
+    // Calculate average of ONLY FILLED periods (> 0%)
+    const filledPeriods = [morning, afternoon, evening, night].filter(p => p > 0);
+    
+    if (filledPeriods.length === 0) {
+      return 0;
+    }
+    
+    return Math.round(filledPeriods.reduce((sum, p) => sum + p, 0) / filledPeriods.length);
   };
 
   /**
@@ -110,7 +148,7 @@ const DailyHabitGrid = () => {
    * Options should be >= highest completion across all periods
    * If task is complete (any period 100%), disable all options
    */
-  const getAvailableOptions = (habitId, currentPeriodId) => {
+  const getAvailableOptions = (habitId, periodId) => {
     const progress = dailyProgress[habitId] || {};
     const morning = progress.morning || 0;
     const afternoon = progress.afternoon || 0;
@@ -124,7 +162,7 @@ const DailyHabitGrid = () => {
 
     // Get highest completion across all periods
     const highestCompletion = Math.max(morning, afternoon, evening, night);
-    const currentValue = progress[currentPeriodId] || 0;
+    const currentValue = progress[periodId] || 0;
 
     // Available options should be >= highest completion (but always include current value)
     const availableOptions = PERCENTAGE_OPTIONS.filter(
@@ -174,22 +212,37 @@ const DailyHabitGrid = () => {
           </div>
         ) : (
           habits.map((habit) => {
-            const avgCompletion = getHabitTotal(habit._id);
+            const avgCompletion = getHabitDisplayValue(habit._id);
             
             return (
               <div 
                 key={habit._id} 
                 className="flex items-center hover:bg-primary-slate hover:bg-opacity-30 rounded transition"
               >
-                {/* Habit Name */}
-                <div className="w-48 flex-shrink-0 px-3 py-3 flex items-center">
+                {/* Habit Name + Quick Complete Button */}
+                <div className="w-48 flex-shrink-0 px-3 py-3 flex items-center gap-2">
                   <div
-                    className="w-3 h-3 rounded-full mr-3 flex-shrink-0"
+                    className="w-3 h-3 rounded-full flex-shrink-0"
                     style={{ backgroundColor: habit.color }}
                   ></div>
-                  <span className="text-white text-sm truncate font-medium" title={habit.name}>
+                  <span className="text-white text-sm truncate font-medium flex-1" title={habit.name}>
                     {habit.name}
                   </span>
+                  {/* Quick Complete Button - marks current period as 100% */}
+                  {!isTaskCompleted(habit._id) && (
+                    <button
+                      onClick={() => handleQuickComplete(habit._id)}
+                      className="flex-shrink-0 p-1.5 rounded-lg bg-green-600 hover:bg-green-500 text-white transition-all hover:scale-110 shadow-lg"
+                      title={`Mark ${TIME_PERIODS[currentPeriod].name} as 100%`}
+                    >
+                      <CheckCircle2 size={14} />
+                    </button>
+                  )}
+                  {isTaskCompleted(habit._id) && (
+                    <span className="flex-shrink-0 p-1.5 text-green-400" title="Task completed!">
+                      <CheckCircle2 size={14} />
+                    </span>
+                  )}
                 </div>
 
                 {/* Goal */}
@@ -203,17 +256,26 @@ const DailyHabitGrid = () => {
                     const percentage = getHabitProgress(habit._id, period.id);
                     const isSelected = selectedCell?.habitId === habit._id && selectedCell?.period === period.id;
                     const isCurrent = currentPeriod === period.id;
+                    const isFuture = isPeriodInFuture(period.id);
 
                     return (
                       <div key={period.id} className="relative">
                         <button
                           onClick={() => handleCellClick(habit._id, period.id)}
+                          disabled={isFuture}
                           className={`w-full h-12 rounded-lg flex items-center justify-center font-bold text-sm transition-all duration-300 ${
                             isCurrent ? 'ring-2 ring-white ring-opacity-30' : ''
-                          } hover:scale-105 hover:ring-2 hover:ring-white hover:ring-opacity-50`}
+                          } ${
+                            isFuture 
+                              ? 'opacity-50 cursor-not-allowed' 
+                              : 'hover:scale-105 hover:ring-2 hover:ring-white hover:ring-opacity-50'
+                          }`}
                           style={getCellStyle(percentage, period.color)}
+                          title={isFuture ? 'Future time period - locked' : `Click to set ${period.name} progress`}
                         >
-                          {percentage === 100 ? (
+                          {isFuture && percentage === 0 ? (
+                            <Lock size={14} className="text-gray-500" />
+                          ) : percentage === 100 ? (
                             <span className="flex items-center gap-1 text-white">
                               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -228,14 +290,14 @@ const DailyHabitGrid = () => {
                         </button>
 
                         {/* Percentage Selector Dropdown */}
-                        {isSelected && (() => {
+                        {isSelected && !isFuture && (() => {
                           const { disabled, options, message } = getAvailableOptions(habit._id, period.id);
                           
                           if (disabled) {
                             return (
                               <div className="absolute top-full left-0 right-0 mt-1 z-50">
                                 <div className="bg-primary-slate rounded-lg shadow-xl border border-gray-600 p-3 animate-fade-in text-center">
-                                  <div className="text-green-400 font-bold flex items-center justify-center gap-2">
+                                  <div className="font-bold flex items-center justify-center gap-2 text-green-400">
                                     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                     </svg>

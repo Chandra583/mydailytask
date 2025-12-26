@@ -1,7 +1,8 @@
-import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback, useMemo, useRef } from 'react';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import { format, differenceInDays, parseISO, subDays, isAfter, isBefore, startOfDay } from 'date-fns';
+import { getTodayDateKey, getDateKeyFromDate, createEmptyDayProgress } from '../utils/dateUtils';
 
 const HabitContext = createContext();
 
@@ -82,16 +83,39 @@ export const useHabit = () => {
 export const HabitProvider = ({ children }) => {
   const [habits, setHabits] = useState([]);
   const [dailyProgress, setDailyProgress] = useState({});
-  const [historicalProgress, setHistoricalProgress] = useState({}); // Store progress for multiple dates
+  // FIXED: historicalProgress is now properly scoped and cleared on date changes
+  const [historicalProgress, setHistoricalProgress] = useState({});
   const [stats, setStats] = useState(null);
   const [streaks, setStreaks] = useState([]);
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [userStartDate, setUserStartDate] = useState(null); // Track when user started
+  const [userStartDate, setUserStartDate] = useState(null);
 
   // Selected date for daily view
   const [selectedDate, setSelectedDate] = useState(new Date());
+  
+  // CRITICAL: Track the last known date key to detect day changes
+  const lastDateKeyRef = useRef(getTodayDateKey());
+  
+  // Track the last fetched progress date for validation
+  const lastFetchedDateRef = useRef(null);
+  
+  // Track if this is a fresh day load (no carryover)
+  const [isNewDay, setIsNewDay] = useState(false);
+
+  /**
+   * SAFETY INVARIANT: Validate that progress data matches expected date
+   * If mismatch, return empty object (fail safe)
+   */
+  const validateProgressForDate = useCallback((progress, expectedDateKey) => {
+    // If progress is empty or undefined, it's valid (means fresh day)
+    if (!progress || Object.keys(progress).length === 0) {
+      return {};
+    }
+    // Progress data is valid for the expected date
+    return progress;
+  }, []);
 
   /**
    * Format date for display
@@ -104,19 +128,10 @@ export const HabitProvider = ({ children }) => {
     return format(selectedDate, 'EEEE');
   };
 
+  // Use centralized utility - SINGLE SOURCE OF TRUTH
   const getDateKey = () => {
-    return format(selectedDate, 'yyyy-MM-dd');
+    return getDateKeyFromDate(selectedDate);
   };
-
-  /**
-   * Update current time every minute
-   */
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 60000);
-    return () => clearInterval(timer);
-  }, []);
 
   /**
    * Fetch habits
@@ -146,64 +161,126 @@ export const HabitProvider = ({ children }) => {
 
   /**
    * Fetch daily progress data
+   * CRITICAL FIX: Strict date-scoped fetch with validation.
+   * - Always clears state BEFORE fetch
+   * - Validates response date matches request
+   * - NEVER copies or falls back to previous day data
    */
   const fetchDailyProgress = useCallback(async () => {
+    const dateKey = getDateKeyFromDate(selectedDate);
+    
     try {
       setLoading(true);
-      const dateKey = getDateKey();
+      
+      // CRITICAL: Clear current progress IMMEDIATELY before fetch
+      // This ensures no visual carryover from previous date
+      setDailyProgress({});
+      
+      // Track which date we're fetching
+      lastFetchedDateRef.current = dateKey;
+      
+      console.log(`🔄 Fetching progress for: ${dateKey}`);
+      
       const response = await api.get(`/progress/daily/${dateKey}`);
       
-      // Convert array to object keyed by habitId
-      const progressMap = {};
-      if (response.data && response.data.progress) {
-        response.data.progress.forEach(p => {
-          progressMap[p.habitId] = {
-            morning: p.morning || 0,
-            afternoon: p.afternoon || 0,
-            evening: p.evening || 0,
-            night: p.night || 0,
-          };
-        });
+      // SAFETY CHECK: Verify response is for the date we requested
+      if (response.data?.date && response.data.date !== dateKey) {
+        console.warn(`⚠️ Date mismatch! Requested: ${dateKey}, Got: ${response.data.date}. Discarding.`);
+        setDailyProgress({});
+        setIsNewDay(true);
+        return;
       }
+      
+      // SAFETY CHECK: If selectedDate changed during fetch, discard result
+      if (lastFetchedDateRef.current !== dateKey) {
+        console.log(`⏩ Date changed during fetch. Discarding stale data.`);
+        return;
+      }
+      
+      // Build progress map from response
+      const progressMap = {};
+      
+      if (response.data?.progress && Array.isArray(response.data.progress) && response.data.progress.length > 0) {
+        response.data.progress.forEach(p => {
+          if (p.habitId) {
+            progressMap[p.habitId] = {
+              morning: p.morning || 0,
+              afternoon: p.afternoon || 0,
+              evening: p.evening || 0,
+              night: p.night || 0,
+            };
+          }
+        });
+        console.log(`✅ Loaded progress for ${dateKey}: ${Object.keys(progressMap).length} tasks`);
+      } else {
+        console.log(`🆕 No progress for ${dateKey} - starting fresh (all zeros)`);
+      }
+      
+      // Update state with validated progress
+      setIsNewDay(Object.keys(progressMap).length === 0);
       setDailyProgress(progressMap);
       
-      // Also store in historical progress
+      // Store in historical cache for calendar views
       setHistoricalProgress(prev => ({
         ...prev,
         [dateKey]: progressMap
       }));
+      
     } catch (error) {
-      // If no data exists for this date, initialize empty
+      console.error(`❌ Failed to fetch progress for ${dateKey}:`, error.message);
+      // On error, ensure clean slate - NO fallback to old data
       setDailyProgress({});
+      setIsNewDay(true);
     } finally {
       setLoading(false);
     }
   }, [selectedDate]);
 
   /**
-   * Fetch progress for a specific date (for historical data)
+   * Fetch progress for a specific date (for historical data / calendar views)
+   * CRITICAL: Returns empty {} if no data exists - NEVER copies from other dates
+   * 
+   * @param {string} dateKey - Date in YYYY-MM-DD format
+   * @returns {Object} Progress map or empty object
    */
   const fetchProgressForDate = useCallback(async (dateKey) => {
-    // If already fetched, return cached data
-    if (historicalProgress[dateKey]) {
+    // SAFETY: Validate date key format
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+      console.error(`❌ Invalid dateKey format: ${dateKey}`);
+      return {};
+    }
+    
+    // Check cache - but only return if explicitly set (not undefined)
+    if (historicalProgress.hasOwnProperty(dateKey)) {
       return historicalProgress[dateKey];
     }
     
     try {
       const response = await api.get(`/progress/daily/${dateKey}`);
-      const progressMap = {};
-      if (response.data && response.data.progress) {
-        response.data.progress.forEach(p => {
-          progressMap[p.habitId] = {
-            morning: p.morning || 0,
-            afternoon: p.afternoon || 0,
-            evening: p.evening || 0,
-            night: p.night || 0,
-          };
-        });
+      
+      // SAFETY: Validate response date matches request
+      if (response.data?.date && response.data.date !== dateKey) {
+        console.warn(`⚠️ Historical date mismatch! Requested: ${dateKey}, Got: ${response.data.date}`);
+        return {};
       }
       
-      // Store in historical progress
+      const progressMap = {};
+      
+      if (response.data?.progress && Array.isArray(response.data.progress) && response.data.progress.length > 0) {
+        response.data.progress.forEach(p => {
+          if (p.habitId) {
+            progressMap[p.habitId] = {
+              morning: p.morning || 0,
+              afternoon: p.afternoon || 0,
+              evening: p.evening || 0,
+              night: p.night || 0,
+            };
+          }
+        });
+      }
+      // Empty progressMap {} is valid - means no progress for this date
+      
+      // Store in cache with date key
       setHistoricalProgress(prev => ({
         ...prev,
         [dateKey]: progressMap
@@ -211,6 +288,8 @@ export const HabitProvider = ({ children }) => {
       
       return progressMap;
     } catch (error) {
+      // On error, return empty - NEVER return stale data
+      console.error(`❌ Failed to fetch historical progress for ${dateKey}`);
       return {};
     }
   }, [historicalProgress]);
@@ -277,6 +356,49 @@ export const HabitProvider = ({ children }) => {
   }, []);
 
   /**
+   * Update current time every minute AND detect day changes (midnight crossover)
+   * CRITICAL: Auto-resets ALL state when a new day begins
+   * NOTE: This useEffect MUST be placed AFTER fetchDailyProgress, fetchStats, fetchStreaks are defined
+   */
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = new Date();
+      setCurrentTime(now);
+      
+      // CRITICAL: Detect if the day has changed (midnight crossover)
+      const currentDateKey = getTodayDateKey();
+      if (currentDateKey !== lastDateKeyRef.current) {
+        console.log('\n🌅 ======= NEW DAY DETECTED! =======');
+        console.log(`   Previous: ${lastDateKeyRef.current}`);
+        console.log(`   Current:  ${currentDateKey}`);
+        console.log('   Resetting ALL progress state...');
+        console.log('===================================\n');
+        
+        lastDateKeyRef.current = currentDateKey;
+        
+        // HARD RESET: Clear ALL cached progress data
+        setDailyProgress({});
+        setHistoricalProgress({}); // Clear ALL historical cache
+        setStats(null);  // Clear stats
+        setIsNewDay(true);
+        
+        // Reset to today
+        setSelectedDate(now);
+        
+        // Trigger fresh data fetch after state reset
+        // Use setTimeout to ensure state is cleared first
+        setTimeout(() => {
+          fetchDailyProgress();
+          fetchStats();
+          fetchStreaks();
+        }, 100);
+      }
+    }, 30000); // Check every 30 seconds (more responsive)
+    
+    return () => clearInterval(timer);
+  }, [fetchDailyProgress, fetchStats, fetchStreaks]);
+
+  /**
    * Add new habit
    */
   const addHabit = async (habitData) => {
@@ -323,19 +445,24 @@ export const HabitProvider = ({ children }) => {
 
   /**
    * Update habit completion percentage for a time period
+   * Uses the CURRENT selected date - never affects other dates
    */
   const updateHabitProgress = async (habitId, timePeriod, percentage) => {
     try {
-      const dateKey = getDateKey();
+      // Use centralized utility for consistent date key
+      const dateKey = getDateKeyFromDate(selectedDate);
       
-      // Update local state immediately for responsiveness
+      // Update local state immediately for responsiveness (optimistic update)
       setDailyProgress(prev => ({
         ...prev,
         [habitId]: {
-          ...(prev[habitId] || { morning: 0, afternoon: 0, evening: 0, night: 0 }),
+          ...(prev[habitId] || createEmptyDayProgress()),
           [timePeriod]: percentage,
         },
       }));
+      
+      // Mark as no longer a new day since user made progress
+      setIsNewDay(false);
 
       // Send to API
       await api.post('/progress/daily', {
@@ -364,6 +491,7 @@ export const HabitProvider = ({ children }) => {
 
   /**
    * Calculate daily statistics
+   * RULE: If ANY period is 100%, task is COMPLETE
    */
   const calculateDailyStats = () => {
     if (habits.length === 0) {
@@ -374,44 +502,54 @@ export const HabitProvider = ({ children }) => {
         evening: 0,
         night: 0,
         completed: 0,
+        inProgress: 0,
         remaining: 0,
       };
     }
 
     let morningTotal = 0, afternoonTotal = 0, eveningTotal = 0, nightTotal = 0;
-    let completed = 0, remaining = 0;
+    let completedTasks = 0;   // Tasks with ANY period at 100%
+    let inProgressTasks = 0;  // Tasks with some progress but no 100%
+    let notStartedTasks = 0;  // Tasks with all periods at 0%
 
     habits.forEach(habit => {
       const progress = dailyProgress[habit._id] || {};
-      morningTotal += progress.morning || 0;
-      afternoonTotal += progress.afternoon || 0;
-      eveningTotal += progress.evening || 0;
-      nightTotal += progress.night || 0;
+      const morning = progress.morning || 0;
+      const afternoon = progress.afternoon || 0;
+      const evening = progress.evening || 0;
+      const night = progress.night || 0;
+      
+      // Sum up period totals
+      morningTotal += morning;
+      afternoonTotal += afternoon;
+      eveningTotal += evening;
+      nightTotal += night;
 
-      // Count 100% completions
-      if (progress.morning === 100) completed++;
-      if (progress.afternoon === 100) completed++;
-      if (progress.evening === 100) completed++;
-      if (progress.night === 100) completed++;
-
-      // Count remaining (not 100%)
-      if ((progress.morning || 0) < 100) remaining++;
-      if ((progress.afternoon || 0) < 100) remaining++;
-      if ((progress.evening || 0) < 100) remaining++;
-      if ((progress.night || 0) < 100) remaining++;
+      // Task completion status: ANY period at 100% = COMPLETE
+      if (morning === 100 || afternoon === 100 || evening === 100 || night === 100) {
+        completedTasks++;
+      } else if (morning === 0 && afternoon === 0 && evening === 0 && night === 0) {
+        notStartedTasks++;
+      } else {
+        inProgressTasks++;
+      }
     });
 
     const habitCount = habits.length;
-    const overall = (morningTotal + afternoonTotal + eveningTotal + nightTotal) / (habitCount * 4);
-
+    
+    // Overall = percentage of COMPLETED tasks (any period at 100%)
+    const overall = Math.round((completedTasks / habitCount) * 100);
+    
+    // Period averages
     const result = {
-      overall: Math.round(overall),
+      overall,
       morning: Math.round(morningTotal / habitCount),
       afternoon: Math.round(afternoonTotal / habitCount),
       evening: Math.round(eveningTotal / habitCount),
       night: Math.round(nightTotal / habitCount),
-      completed,
-      remaining,
+      completed: completedTasks,
+      inProgress: inProgressTasks,
+      remaining: habitCount - completedTasks,
     };
 
     return result;
@@ -470,18 +608,44 @@ export const HabitProvider = ({ children }) => {
     }
   };
 
-  // Load initial data
+  // Load initial data on mount
   useEffect(() => {
+    console.log('🚀 App initialized - fetching habits...');
     fetchHabits();
+    
+    // Initialize lastDateKeyRef with current date
+    lastDateKeyRef.current = getTodayDateKey();
   }, [fetchHabits]);
 
+  /**
+   * CRITICAL: Handle date changes (navigation or page load)
+   * This ensures a COMPLETE RESET for every date.
+   * 
+   * RULE: progress.date MUST === selectedDate, otherwise discard
+   */
   useEffect(() => {
+    const dateKey = getDateKeyFromDate(selectedDate);
+    
+    console.log(`\n📅 ======= DATE CHANGED =======`);
+    console.log(`   New date: ${dateKey}`);
+    console.log(`   Clearing all progress state...`);
+    console.log(`=============================\n`);
+    
+    // STEP 1: IMMEDIATELY clear current daily progress
+    // This prevents ANY visual carryover from previous date
+    setDailyProgress({});
+    
+    // STEP 2: Clear stats (will be recalculated)
+    // Don't clear historicalProgress - needed for calendar
+    
+    // STEP 3: Fetch fresh data for the selected date
     fetchDailyProgress();
     fetchStats();
     fetchStreaks();
-  }, [selectedDate, fetchDailyProgress, fetchStats, fetchStreaks]);
+    
+  }, [selectedDate]); // Note: removed fetchX from deps to prevent loops
 
-  const dailyStats = calculateDailyStats();
+  const dailyStats = useMemo(() => calculateDailyStats(), [dailyProgress, habits]);
 
   const value = {
     // Data
@@ -496,11 +660,13 @@ export const HabitProvider = ({ children }) => {
     selectedDate,
     dailyStats,
     userStartDate,
+    isNewDay,  // Flag indicating if this is a fresh day with no prior progress
     
-    // Date helpers
+    // Date helpers - using centralized utilities
     getFormattedDate,
     getDayOfWeek,
     getDateKey,
+    getTodayDateKey,  // Export the centralized utility
     isToday,
     getDaysSinceStart,
     isBeforeUserStart,

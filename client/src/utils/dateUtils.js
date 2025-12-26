@@ -142,3 +142,51 @@ export const generateCalendar = (year, month) => {
   
   return calendar;
 };
+
+/**
+ * SINGLE SOURCE OF TRUTH for today's date key
+ * Uses LOCAL timezone - critical for daily task tracking
+ * @returns {string} Date in YYYY-MM-DD format (local timezone)
+ */
+export const getTodayDateKey = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+/**
+ * Get date key for any date (local timezone)
+ * @param {Date} date - Date object
+ * @returns {string} Date in YYYY-MM-DD format
+ */
+export const getDateKeyFromDate = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+/**
+ * Check if two date keys represent the same day
+ * @param {string} dateKey1 - First date key (YYYY-MM-DD)
+ * @param {string} dateKey2 - Second date key (YYYY-MM-DD)
+ * @returns {boolean}
+ */
+export const isSameDateKey = (dateKey1, dateKey2) => {
+  return dateKey1 === dateKey2;
+};
+
+/**
+ * Create empty progress structure for a fresh day
+ * @returns {Object} Empty progress object with all periods at 0
+ */
+export const createEmptyDayProgress = () => {
+  return {
+    morning: 0,
+    afternoon: 0,
+    evening: 0,
+    night: 0
+  };
+};
