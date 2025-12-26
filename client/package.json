@@ -8,13 +8,15 @@
     "date-fns": "^3.0.6",
     "framer-motion": "^12.23.26",
     "lucide-react": "^0.562.0",
+    "ogl": "^1.0.11",
     "react": "^18.2.0",
     "react-circular-progressbar": "^2.1.0",
     "react-confetti": "^6.4.0",
     "react-dom": "^18.2.0",
     "react-hot-toast": "^2.4.1",
     "react-router-dom": "^6.21.1",
-    "recharts": "^2.10.3"
+    "recharts": "^2.10.3",
+    "three": "^0.182.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",
