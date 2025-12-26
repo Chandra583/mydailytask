@@ -18,18 +18,26 @@ const HabitProgressBars = () => {
   const { habits, dailyProgress } = useHabit();
 
   // Calculate progress for each habit
+  // FIXED: If ANY period is 100%, show 100% as average
   const habitProgress = habits.map(habit => {
     const progress = dailyProgress[habit._id] || {};
+    const morning = progress.morning || 0;
+    const afternoon = progress.afternoon || 0;
+    const evening = progress.evening || 0;
+    const night = progress.night || 0;
+
+    // If any period is 100%, task is complete
+    const isComplete = morning === 100 || afternoon === 100 || evening === 100 || night === 100;
+    
     return {
       ...habit,
-      morning: progress.morning || 0,
-      afternoon: progress.afternoon || 0,
-      evening: progress.evening || 0,
-      night: progress.night || 0,
-      average: Math.round(
-        ((progress.morning || 0) + (progress.afternoon || 0) + 
-         (progress.evening || 0) + (progress.night || 0)) / 4
-      ),
+      morning,
+      afternoon,
+      evening,
+      night,
+      isComplete,
+      // Show 100% if complete, otherwise show max completion
+      average: isComplete ? 100 : Math.max(morning, afternoon, evening, night),
     };
   });
 
