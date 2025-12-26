@@ -88,11 +88,44 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  /**
+   * Google Login function
+   */
+  const googleLogin = async (credentialResponse) => {
+    try {
+      // Decode the JWT to get user info
+      const base64Url = credentialResponse.credential.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const decoded = JSON.parse(window.atob(base64));
+
+      const response = await api.post('/auth/google', {
+        token: credentialResponse.credential,
+        email: decoded.email,
+        name: decoded.name,
+        picture: decoded.picture
+      });
+
+      const { token, ...userData } = response.data;
+
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(userData));
+      setUser(userData);
+
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Google login failed',
+      };
+    }
+  };
+
   const value = {
     user,
     loading,
     login,
     register,
+    googleLogin,
     logout,
     isAuthenticated: !!user,
   };

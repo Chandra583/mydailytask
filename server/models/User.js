@@ -26,9 +26,22 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: [true, 'Please add a password'],
     minlength: [6, 'Password must be at least 6 characters'],
     select: false
+  },
+  // Google OAuth fields
+  googleId: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
+  picture: {
+    type: String
+  },
+  authProvider: {
+    type: String,
+    enum: ['local', 'google'],
+    default: 'local'
   },
   createdAt: {
     type: Date,
@@ -37,11 +50,12 @@ const userSchema = new mongoose.Schema({
 });
 
 /**
- * Hash password before saving
+ * Hash password before saving (only for local auth)
  */
 userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) {
-    next();
+  // Skip if no password or password not modified
+  if (!this.password || !this.isModified('password')) {
+    return next();
   }
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
