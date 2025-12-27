@@ -133,7 +133,7 @@ const DailyProgressTrendChart = () => {
         return (
           <div className="bg-primary-slate p-3 rounded-lg shadow-lg border border-gray-600">
             <p className="text-gray-400 font-bold">{data.label}</p>
-            <p className="text-gray-500 text-sm">Future time - no data yet</p>
+            <p className="text-gray-500 text-sm">Future time - no any  data yet</p>
           </div>
         );
       }
