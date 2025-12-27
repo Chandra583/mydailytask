@@ -17,7 +17,8 @@ const HabitConsistencyHeatmap = () => {
     isBeforeUserStart,
     historicalProgress,
     dailyProgress,
-    fetchProgressForDate
+    fetchProgressForDate,
+    progressResetKey
   } = useHabit();
 
   const daysSinceStart = getDaysSinceStart();
@@ -36,7 +37,9 @@ const HabitConsistencyHeatmap = () => {
   }, [fetchProgressForDate]);
 
   // Generate days to display
+  // GOLDEN RULE: Recalculate when progress resets
   const days = useMemo(() => {
+    console.log(`📅 Recalculating HabitConsistencyHeatmap days (resetKey: ${progressResetKey})`);
     const today = startOfDay(new Date());
     
     return Array.from({ length: 7 }, (_, i) => {
@@ -54,7 +57,7 @@ const HabitConsistencyHeatmap = () => {
         dayNumber,
       };
     });
-  }, [selectedDate, userStartDate, daysSinceStart, isBeforeUserStart]);
+  }, [selectedDate, userStartDate, daysSinceStart, isBeforeUserStart, progressResetKey]);
 
   // Get top 8 tasks for the heatmap
   const topHabits = habits.slice(0, 8);

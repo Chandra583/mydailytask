@@ -103,6 +103,10 @@ export const HabitProvider = ({ children }) => {
   
   // Track if this is a fresh day load (no carryover)
   const [isNewDay, setIsNewDay] = useState(false);
+  
+  // GOLDEN RULE ENFORCER: This key changes when progress resets.
+  // All memoized calculations MUST include this in dependencies to force recalculation.
+  const [progressResetKey, setProgressResetKey] = useState(0);
 
   /**
    * SAFETY INVARIANT: Validate that progress data matches expected date
@@ -381,6 +385,7 @@ export const HabitProvider = ({ children }) => {
         setHistoricalProgress({}); // Clear ALL historical cache
         setStats(null);  // Clear stats
         setIsNewDay(true);
+        setProgressResetKey(prev => prev + 1); // Force all derived state to recalculate
         
         // Reset to today
         setSelectedDate(now);
@@ -635,8 +640,10 @@ export const HabitProvider = ({ children }) => {
     // This prevents ANY visual carryover from previous date
     setDailyProgress({});
     
-    // STEP 2: Clear stats (will be recalculated)
-    // Don't clear historicalProgress - needed for calendar
+    // STEP 2: Clear stats and increment reset key
+    // This forces ALL derived UI state to recalculate
+    setStats(null);
+    setProgressResetKey(prev => prev + 1);
     
     // STEP 3: Fetch fresh data for the selected date
     fetchDailyProgress();
@@ -645,7 +652,12 @@ export const HabitProvider = ({ children }) => {
     
   }, [selectedDate]); // Note: removed fetchX from deps to prevent loops
 
-  const dailyStats = useMemo(() => calculateDailyStats(), [dailyProgress, habits]);
+  // GOLDEN RULE: dailyStats MUST recalculate when progress changes.
+  // progressResetKey ensures stale memoized values are never used.
+  const dailyStats = useMemo(() => {
+    console.log(`📊 Recalculating dailyStats (resetKey: ${progressResetKey})`);
+    return calculateDailyStats();
+  }, [dailyProgress, habits, progressResetKey]);
 
   const value = {
     // Data
@@ -690,6 +702,9 @@ export const HabitProvider = ({ children }) => {
     
     // Utilities
     getCurrentTimePeriod: getCurrentTimePeriod,
+    
+    // GOLDEN RULE ENFORCER: Include in memoization dependencies to force recalculation
+    progressResetKey,
   };
 
   return <HabitContext.Provider value={value}>{children}</HabitContext.Provider>;

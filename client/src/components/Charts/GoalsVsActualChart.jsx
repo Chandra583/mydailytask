@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useHabit, TIME_PERIODS } from '../../context/HabitContext';
 
 /**
@@ -6,40 +6,45 @@ import { useHabit, TIME_PERIODS } from '../../context/HabitContext';
  * Comparison bar chart showing target vs actual completion
  */
 const GoalsVsActualChart = () => {
-  const { dailyStats } = useHabit();
+  const { dailyStats, progressResetKey } = useHabit();
 
   const GOAL_PERCENTAGE = 100; // Target is always 100% for each period
 
-  const periodData = [
-    {
-      name: 'Morning',
-      icon: TIME_PERIODS.morning.icon,
-      color: TIME_PERIODS.morning.color,
-      goal: GOAL_PERCENTAGE,
-      actual: dailyStats?.morning || 0,
-    },
-    {
-      name: 'Afternoon',
-      icon: TIME_PERIODS.afternoon.icon,
-      color: TIME_PERIODS.afternoon.color,
-      goal: GOAL_PERCENTAGE,
-      actual: dailyStats?.afternoon || 0,
-    },
-    {
-      name: 'Evening',
-      icon: TIME_PERIODS.evening.icon,
-      color: TIME_PERIODS.evening.color,
-      goal: GOAL_PERCENTAGE,
-      actual: dailyStats?.evening || 0,
-    },
-    {
-      name: 'Night',
-      icon: TIME_PERIODS.night.icon,
-      color: TIME_PERIODS.night.color,
-      goal: GOAL_PERCENTAGE,
-      actual: dailyStats?.night || 0,
-    },
-  ];
+  // GOLDEN RULE: Derived from dailyStats (which comes from dailyProgress)
+  const periodData = useMemo(() => {
+    console.log(`🎯 Recalculating GoalsVsActualChart (resetKey: ${progressResetKey})`);
+    
+    return [
+      {
+        name: 'Morning',
+        icon: TIME_PERIODS.morning.icon,
+        color: TIME_PERIODS.morning.color,
+        goal: GOAL_PERCENTAGE,
+        actual: dailyStats?.morning || 0,
+      },
+      {
+        name: 'Afternoon',
+        icon: TIME_PERIODS.afternoon.icon,
+        color: TIME_PERIODS.afternoon.color,
+        goal: GOAL_PERCENTAGE,
+        actual: dailyStats?.afternoon || 0,
+      },
+      {
+        name: 'Evening',
+        icon: TIME_PERIODS.evening.icon,
+        color: TIME_PERIODS.evening.color,
+        goal: GOAL_PERCENTAGE,
+        actual: dailyStats?.evening || 0,
+      },
+      {
+        name: 'Night',
+        icon: TIME_PERIODS.night.icon,
+        color: TIME_PERIODS.night.color,
+        goal: GOAL_PERCENTAGE,
+        actual: dailyStats?.night || 0,
+      },
+    ];
+  }, [dailyStats, progressResetKey]);
 
   // Calculate overall stats
   const totalGoal = periodData.reduce((sum, p) => sum + p.goal, 0);

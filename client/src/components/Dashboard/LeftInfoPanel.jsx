@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useHabit, TIME_PERIODS, getCurrentTimePeriod } from '../../context/HabitContext';
 import { format } from 'date-fns';
 import { 
@@ -36,7 +36,8 @@ const LeftInfoPanel = () => {
     dailyProgress,
     dailyStats, 
     selectedDate, 
-    getFormattedDate 
+    getFormattedDate,
+    progressResetKey
   } = useHabit();
 
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -53,6 +54,7 @@ const LeftInfoPanel = () => {
   }, []);
 
   // Calculate insights based on COMPLETION RATE (tasks at 100% / total tasks)
+  // GOLDEN RULE: ALL derived from dailyProgress, never from habit properties
   const getPeriodCompletionRate = (periodId) => {
     if (habits.length === 0) return 0;
     let completedTasks = 0;
@@ -65,59 +67,47 @@ const LeftInfoPanel = () => {
     return Math.round((completedTasks / habits.length) * 100);
   };
 
-  const getBestTimePeriod = () => {
-    const periods = ['morning', 'afternoon', 'evening', 'night'];
-    let best = periods[0];
-    let maxRate = getPeriodCompletionRate(periods[0]);
+  // GOLDEN RULE: Memoize best/worst period calculations
+  const { bestPeriod, worstPeriod } = useMemo(() => {
+    console.log(`📊 Recalculating LeftInfoPanel insights (resetKey: ${progressResetKey})`);
     
-    periods.forEach(p => {
-      const rate = getPeriodCompletionRate(p);
-      if (rate > maxRate) {
-        maxRate = rate;
-        best = p;
-      }
-    });
-    
-    return { period: TIME_PERIODS[best], value: maxRate };
-  };
+    const getBest = () => {
+      const periods = ['morning', 'afternoon', 'evening', 'night'];
+      let best = periods[0];
+      let maxRate = getPeriodCompletionRate(periods[0]);
+      
+      periods.forEach(p => {
+        const rate = getPeriodCompletionRate(p);
+        if (rate > maxRate) {
+          maxRate = rate;
+          best = p;
+        }
+      });
+      
+      return { period: TIME_PERIODS[best], value: maxRate };
+    };
 
-  const getWorstTimePeriod = () => {
-    const periods = ['morning', 'afternoon', 'evening', 'night'];
-    let worst = periods[0];
-    let minRate = getPeriodCompletionRate(periods[0]);
-    
-    periods.forEach(p => {
-      const rate = getPeriodCompletionRate(p);
-      if (rate < minRate) {
-        minRate = rate;
-        worst = p;
-      }
-    });
-    
-    return { period: TIME_PERIODS[worst], value: minRate };
-  };
+    const getWorst = () => {
+      const periods = ['morning', 'afternoon', 'evening', 'night'];
+      let worst = periods[0];
+      let minRate = getPeriodCompletionRate(periods[0]);
+      
+      periods.forEach(p => {
+        const rate = getPeriodCompletionRate(p);
+        if (rate < minRate) {
+          minRate = rate;
+          worst = p;
+        }
+      });
+      
+      return { period: TIME_PERIODS[worst], value: minRate };
+    };
 
-  // Calculate today's overall progress
-  // RULE: ANY period at 100% = task is COMPLETE
-  const getTodayCompletionRate = () => {
-    if (habits.length === 0) return 0;
-    let completedTasks = 0;
-    habits.forEach(habit => {
-      const progress = dailyProgress[habit._id] || {};
-      const morning = progress.morning || 0;
-      const afternoon = progress.afternoon || 0;
-      const evening = progress.evening || 0;
-      const night = progress.night || 0;
-      // A task is COMPLETE if ANY period is 100%
-      if (morning === 100 || afternoon === 100 || evening === 100 || night === 100) {
-        completedTasks++;
-      }
-    });
-    return Math.round((completedTasks / habits.length) * 100);
-  };
+    return { bestPeriod: getBest(), worstPeriod: getWorst() };
+  }, [habits, dailyProgress, progressResetKey]);
 
-  const bestPeriod = getBestTimePeriod();
-  const worstPeriod = getWorstTimePeriod();
+  // REMOVED: getTodayCompletionRate is now derived from dailyStats
+  
   const BestIcon = PERIOD_ICONS[bestPeriod.period.id];
   const WorstIcon = PERIOD_ICONS[worstPeriod.period.id];
 
