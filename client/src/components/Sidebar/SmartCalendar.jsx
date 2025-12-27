@@ -21,9 +21,11 @@ const SmartCalendar = () => {
     goToToday, 
     historicalProgress, 
     dailyStats,
+    dailyProgress,
     fetchProgressForDate,
     isBeforeUserStart,
-    userStartDate
+    userStartDate,
+    progressResetKey
   } = useHabit();
 
   const [hoveredDate, setHoveredDate] = useState(null);
@@ -51,6 +53,7 @@ const SmartCalendar = () => {
   }, [days, fetchProgressForDate, isBeforeUserStart]);
 
   // Calculate completion for a specific date
+  // GOLDEN RULE: For TODAY, use dailyStats (derived from dailyProgress), NOT historicalProgress
   const getCompletionForDay = useCallback((date) => {
     const today = startOfDay(new Date());
     const dateKey = format(date, 'yyyy-MM-dd');
@@ -65,7 +68,7 @@ const SmartCalendar = () => {
       return { completion: 0, isBeforeStart: true };
     }
     
-    // Today - use current dailyStats
+    // GOLDEN RULE: For today, use dailyStats/dailyProgress, NOT historicalProgress
     if (isToday(date)) {
       return { completion: dailyStats?.overall || 0, isToday: true };
     }
@@ -106,7 +109,7 @@ const SmartCalendar = () => {
         night: periodCount.night > 0 ? Math.round(periodCompletion.night / periodCount.night) : 0,
       }
     };
-  }, [historicalProgress, dailyStats, isBeforeUserStart]);
+  }, [historicalProgress, dailyStats, dailyProgress, isBeforeUserStart, progressResetKey]);
 
   // Get color based on completion percentage
   const getColorByCompletion = (percentage, isBeforeStart = false, isFuture = false) => {

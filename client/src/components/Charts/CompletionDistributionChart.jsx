@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useHabit } from '../../context/HabitContext';
 
 /**
@@ -6,12 +6,15 @@ import { useHabit } from '../../context/HabitContext';
  * Shows distribution of tasks by completion percentage level
  */
 const CompletionDistributionChart = () => {
-  const { habits, dailyProgress } = useHabit();
+  const { habits, dailyProgress, progressResetKey } = useHabit();
 
   // Calculate distribution of tasks by completion level
-  // FIXED: If ANY time period is 100%, task is considered "100% Complete"
-  const calculateDistribution = () => {
-    const distribution = {
+  // GOLDEN RULE: ALL values derived from dailyProgress, never from habit properties
+  // If ANY time period is 100%, task is considered "100% Complete"
+  const distribution = useMemo(() => {
+    console.log(`📊 Recalculating distribution (resetKey: ${progressResetKey})`);
+    
+    const dist = {
       complete: { count: 0, label: '100% Complete', color: '#4ade80', icon: '✓' },
       high: { count: 0, label: '80-99%', color: '#86efac', icon: '●' },
       medium: { count: 0, label: '50-79%', color: '#fbbf24', icon: '●' },
@@ -28,22 +31,21 @@ const CompletionDistributionChart = () => {
 
       // Check if ANY period is 100% - task is complete
       if (morning === 100 || afternoon === 100 || evening === 100 || night === 100) {
-        distribution.complete.count++;
+        dist.complete.count++;
       } else {
         // Use highest completion percentage for categorization
         const maxCompletion = Math.max(morning, afternoon, evening, night);
         
-        if (maxCompletion >= 80) distribution.high.count++;
-        else if (maxCompletion >= 50) distribution.medium.count++;
-        else if (maxCompletion >= 20) distribution.low.count++;
-        else distribution.minimal.count++;
+        if (maxCompletion >= 80) dist.high.count++;
+        else if (maxCompletion >= 50) dist.medium.count++;
+        else if (maxCompletion >= 20) dist.low.count++;
+        else dist.minimal.count++;
       }
     });
 
-    return distribution;
-  };
+    return dist;
+  }, [habits, dailyProgress, progressResetKey]);
 
-  const distribution = calculateDistribution();
   const totalHabits = habits.length || 1;
 
   // Calculate percentages
