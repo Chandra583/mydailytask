@@ -27,7 +27,9 @@ const WeeklyOverviewChart = () => {
     isBeforeUserStart,
     historicalProgress,
     fetchProgressForDate,
-    habits
+    habits,
+    dailyProgress,
+    progressResetKey
   } = useHabit();
 
   const daysSinceStart = getDaysSinceStart();
@@ -46,9 +48,13 @@ const WeeklyOverviewChart = () => {
   }, [fetchProgressForDate]);
 
   // Calculate completion for a date
-  // RULE: ANY period at 100% = task is COMPLETE
-  const calculateCompletion = (dateKey) => {
-    const progress = historicalProgress[dateKey];
+  // GOLDEN RULE: For TODAY, use dailyProgress directly, NOT historicalProgress
+  // ANY period at 100% = task is COMPLETE
+  const calculateCompletion = (dateKey, isCurrentDay = false) => {
+    // CRITICAL: For today, use current dailyProgress state
+    // This ensures we never show stale historical data for today
+    const progress = isCurrentDay ? dailyProgress : historicalProgress[dateKey];
+    
     if (!progress || Object.keys(progress).length === 0) {
       return 0;
     }
@@ -71,7 +77,11 @@ const WeeklyOverviewChart = () => {
   };
 
   // Generate last 7 days data based on user start date
+  // GOLDEN RULE: Today's data comes from dailyStats/dailyProgress, NOT historicalProgress
   const weeklyData = useMemo(() => {
+    // Log for debugging
+    console.log(`📅 Recalculating weeklyData (resetKey: ${progressResetKey})`);
+    
     const today = startOfDay(new Date());
     
     return Array.from({ length: 7 }, (_, i) => {
@@ -81,13 +91,16 @@ const WeeklyOverviewChart = () => {
       const isBeforeStart = isBeforeUserStart(date);
       
       // For today, use current dailyStats; for past days, use historical data
+      // CRITICAL: Never use historicalProgress for today's value
       let completion = 0;
       if (!isBeforeStart) {
         if (isCurrentDay) {
-          // Use dailyStats for today (already calculated in HabitContext)
+          // GOLDEN RULE: For today, use ONLY dailyStats (derived from dailyProgress)
+          // This is the single source of truth for today's progress
           completion = dailyStats?.overall || 0;
         } else {
-          completion = calculateCompletion(dateKey);
+          // For past days, calculate from historical data
+          completion = calculateCompletion(dateKey, false);
         }
       }
       
@@ -102,7 +115,7 @@ const WeeklyOverviewChart = () => {
         dayNumber: isBeforeStart ? null : daysSinceStart - (6 - i),
       };
     });
-  }, [selectedDate, dailyStats?.overall, userStartDate, daysSinceStart, historicalProgress]);
+  }, [selectedDate, dailyStats?.overall, userStartDate, daysSinceStart, historicalProgress, dailyProgress, progressResetKey]);
 
   // Get color based on completion percentage
   const getBarColor = (completion, isBeforeStart) => {

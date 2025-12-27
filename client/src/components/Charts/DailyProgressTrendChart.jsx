@@ -10,7 +10,8 @@ import {
   CartesianGrid
 } from 'recharts';
 import { useHabit, TIME_PERIODS, getCurrentTimePeriod } from '../../context/HabitContext';
-import { TrendingUp, Sun, Sunrise, Sunset, Moon, CheckCircle2 } from 'lucide-react';
+import { TrendingUp, Sun, Sunrise, Sunset, Moon, CheckCircle2, Calendar } from 'lucide-react';
+import { format } from 'date-fns';
 
 // Period icons mapping
 const PERIOD_ICONS = {
@@ -23,20 +24,42 @@ const PERIOD_ICONS = {
 /**
  * Daily Progress Trend Chart
  * Modern2026 design with Lucide icons and glassmorphism
- * FIXED: Only shows data up to current time, future times grayed out
+ * FIXED: Now fully DATE-AWARE - shows data for selectedDate, not just today
+ * 
+ * GOLDEN RULE: Graph derives data from dailyProgress[selectedDate]
+ * - Today: Shows live progress up to current hour (future grayed out)
+ * - Past dates: Shows FULL day of data (all hours are "past")
  */
 const DailyProgressTrendChart = () => {
-  const { dailyStats, habits, dailyProgress } = useHabit();
+  const { 
+    dailyStats, 
+    habits, 
+    dailyProgress, 
+    progressResetKey,
+    selectedDate,
+    isToday,
+    getFormattedDate
+  } = useHabit();
+  
   const [currentTime, setCurrentTime] = useState(new Date());
   const currentPeriod = getCurrentTimePeriod();
   
-  // Update current time every minute
+  // CRITICAL: Check if we're viewing TODAY or a PAST date
+  const isViewingToday = isToday();
+  
+  // Format date for display
+  const displayDate = format(selectedDate, 'MMMM d, yyyy');
+  
+  // Update current time every minute (only matters for today view)
   useEffect(() => {
+    // Only run timer if viewing today
+    if (!isViewingToday) return;
+    
     const timer = setInterval(() => {
       setCurrentTime(new Date());
     }, 60000);
     return () => clearInterval(timer);
-  }, []);
+  }, [isViewingToday]);
 
   const currentHour = currentTime.getHours();
   const currentMinute = currentTime.getMinutes();
@@ -54,8 +77,10 @@ const DailyProgressTrendChart = () => {
   };
 
   // Generate hourly data points with natural variation for better UX
-  // Shows actual period values with slight visual variations
+  // GOLDEN RULE: For TODAY, show up to current hour. For PAST dates, show ALL hours.
   const hourlyData = useMemo(() => {
+    console.log(`📈 Recalculating hourlyData (resetKey: ${progressResetKey}, date: ${displayDate}, isToday: ${isViewingToday})`);
+    
     const allHours = [
       { hour: 6, label: '6 AM', period: 'morning', variation: 0 },
       { hour: 7, label: '7 AM', period: 'morning', variation: 2 },
@@ -87,21 +112,29 @@ const DailyProgressTrendChart = () => {
     };
 
     return allHours.map((h, index) => {
-      // Determine if this hour is in the past, current, or future
+      // CRITICAL FIX: Determine past/current/future based on whether viewing TODAY or PAST
       let isPast = false;
       let isCurrent = false;
       let isFuture = false;
       
-      if (h.hour === 0) {
-        isPast = currentHour >= 0 && currentHour < 6;
-        isCurrent = currentHour === 0;
-        isFuture = currentHour >= 6;
-      } else if (h.hour < currentHour) {
-        isPast = true;
-      } else if (h.hour === currentHour) {
-        isCurrent = true;
+      if (isViewingToday) {
+        // TODAY: Use current hour to determine past/current/future
+        if (h.hour === 0) {
+          isPast = currentHour >= 0 && currentHour < 6;
+          isCurrent = currentHour === 0;
+          isFuture = currentHour >= 6;
+        } else if (h.hour < currentHour) {
+          isPast = true;
+        } else if (h.hour === currentHour) {
+          isCurrent = true;
+        } else {
+          isFuture = true;
+        }
       } else {
-        isFuture = true;
+        // PAST DATE: ALL hours are in the past (full day of data)
+        isPast = true;
+        isCurrent = false;
+        isFuture = false;
       }
 
       // Show ACTUAL period value with slight variation for dynamic feel
@@ -123,7 +156,7 @@ const DailyProgressTrendChart = () => {
         isPast,
       };
     });
-  }, [dailyProgress, currentHour, habits.length]);
+  }, [dailyProgress, currentHour, habits, progressResetKey, isViewingToday, selectedDate]);
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
@@ -201,14 +234,27 @@ const DailyProgressTrendChart = () => {
             <TrendingUp size={18} className="text-emerald-400" />
             DAILY PROGRESS TREND
           </h3>
-          <p className="text-gray-500 text-xs mt-1">
-            Task completion up to {currentHour > 12 ? currentHour - 12 : currentHour}:{currentMinute.toString().padStart(2, '0')} {currentHour >= 12 ? 'PM' : 'AM'}
+          {/* FIXED: Show date-aware subtitle */}
+          <p className="text-gray-500 text-xs mt-1 flex items-center gap-1">
+            {isViewingToday ? (
+              // TODAY: Show live time
+              <>
+                Task completion up to {currentHour > 12 ? currentHour - 12 : currentHour || 12}:{currentMinute.toString().padStart(2, '0')} {currentHour >= 12 ? 'PM' : 'AM'}
+                <span className="text-green-400 ml-1">● Live</span>
+              </>
+            ) : (
+              // PAST DATE: Show full date label
+              <>
+                <Calendar size={12} className="text-gray-500" />
+                Task completion for {displayDate}
+              </>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-3">
           {Object.values(TIME_PERIODS).map((period) => {
             const Icon = PERIOD_ICONS[period.id];
-            const isCurrentPeriod = currentPeriod === period.id;
+            const isCurrentPeriod = isViewingToday && currentPeriod === period.id;
             return (
               <div key={period.id} className={`flex items-center gap-1.5 ${isCurrentPeriod ? 'ring-1 ring-white/30 rounded-lg px-2 py-1' : ''}`}>
                 <div 
@@ -323,7 +369,7 @@ const DailyProgressTrendChart = () => {
         {Object.entries(TIME_PERIODS).map(([key, period]) => {
           const Icon = PERIOD_ICONS[key];
           const value = getPeriodAverageCompletion(key);
-          const isCurrentPeriod = currentPeriod === key;
+          const isCurrentPeriod = isViewingToday && currentPeriod === key;
           
           return (
             <div 

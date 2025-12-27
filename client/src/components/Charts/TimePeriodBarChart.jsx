@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { 
   BarChart, 
   Bar, 
@@ -16,39 +16,44 @@ import { useHabit, TIME_PERIODS, getCurrentTimePeriod } from '../../context/Habi
  * Vertical grouped bars showing completion for each time period
  */
 const TimePeriodBarChart = () => {
-  const { dailyStats } = useHabit();
+  const { dailyStats, progressResetKey } = useHabit();
   const currentPeriod = getCurrentTimePeriod();
 
-  const chartData = [
-    {
-      name: 'Morning',
-      icon: '🌅',
-      completion: dailyStats?.morning || 0,
-      color: TIME_PERIODS.morning.color,
-      timeRange: '6 AM - 12 PM',
-    },
-    {
-      name: 'Afternoon',
-      icon: '☀️',
-      completion: dailyStats?.afternoon || 0,
-      color: TIME_PERIODS.afternoon.color,
-      timeRange: '12 PM - 6 PM',
-    },
-    {
-      name: 'Evening',
-      icon: '🌆',
-      completion: dailyStats?.evening || 0,
-      color: TIME_PERIODS.evening.color,
-      timeRange: '6 PM - 10 PM',
-    },
-    {
-      name: 'Night',
-      icon: '🌙',
-      completion: dailyStats?.night || 0,
-      color: TIME_PERIODS.night.color,
-      timeRange: '10 PM - 6 AM',
-    },
-  ];
+  // GOLDEN RULE: Chart data derived from dailyStats (which comes from dailyProgress)
+  const chartData = useMemo(() => {
+    console.log(`📊 Recalculating TimePeriodBarChart (resetKey: ${progressResetKey})`);
+    
+    return [
+      {
+        name: 'Morning',
+        icon: '🌅',
+        completion: dailyStats?.morning || 0,
+        color: TIME_PERIODS.morning.color,
+        timeRange: '6 AM - 12 PM',
+      },
+      {
+        name: 'Afternoon',
+        icon: '☀️',
+        completion: dailyStats?.afternoon || 0,
+        color: TIME_PERIODS.afternoon.color,
+        timeRange: '12 PM - 6 PM',
+      },
+      {
+        name: 'Evening',
+        icon: '🌆',
+        completion: dailyStats?.evening || 0,
+        color: TIME_PERIODS.evening.color,
+        timeRange: '6 PM - 10 PM',
+      },
+      {
+        name: 'Night',
+        icon: '🌙',
+        completion: dailyStats?.night || 0,
+        color: TIME_PERIODS.night.color,
+        timeRange: '10 PM - 6 AM',
+      },
+    ];
+  }, [dailyStats, progressResetKey]);
 
   // Find best and worst performing periods
   const sortedData = [...chartData].sort((a, b) => b.completion - a.completion);

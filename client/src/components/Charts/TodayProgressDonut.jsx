@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { useHabit } from '../../context/HabitContext';
 
@@ -8,11 +8,14 @@ import { useHabit } from '../../context/HabitContext';
  * RULE: If ANY period is 100%, task is COMPLETE
  */
 const TodayProgressDonut = () => {
-  const { habits, dailyProgress, dailyStats } = useHabit();
+  const { habits, dailyProgress, dailyStats, progressResetKey } = useHabit();
 
   // Calculate task-based completion
-  // RULE: ANY period at 100% = COMPLETED task
-  const calculateTaskStatus = () => {
+  // GOLDEN RULE: ALL values derived from dailyProgress, never from habit properties
+  // ANY period at 100% = COMPLETED task
+  const taskStatus = useMemo(() => {
+    console.log(`🎯 Recalculating taskStatus (resetKey: ${progressResetKey})`);
+    
     let completed = 0;      // ANY period at 100%
     let inProgress = 0;     // Some progress but no 100%
     let notStarted = 0;     // ALL periods at 0%
@@ -39,15 +42,16 @@ const TodayProgressDonut = () => {
     });
 
     return { completed, inProgress, notStarted };
-  };
-
-  const taskStatus = calculateTaskStatus();
+  }, [habits, dailyProgress, progressResetKey]);
   const totalTasks = habits.length;
-  
+
   // Overall percentage = completed tasks / total tasks
-  const overallPercentage = totalTasks > 0 
-    ? Math.round((taskStatus.completed / totalTasks) * 100) 
-    : 0;
+  // Use memoized value that depends on progressResetKey
+  const overallPercentage = useMemo(() => {
+    return totalTasks > 0 
+      ? Math.round((taskStatus.completed / totalTasks) * 100) 
+      : 0;
+  }, [taskStatus.completed, totalTasks]);
 
   const chartData = [
     { name: 'Completed', value: taskStatus.completed, color: '#4ade80' },

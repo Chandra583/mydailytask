@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useHabit, TIME_PERIODS } from '../../context/HabitContext';
 import { BarChart3, Sun, Sunrise, Sunset, Moon } from 'lucide-react';
 
@@ -16,15 +16,19 @@ const PERIOD_ICONS = {
  * FIXED: Shows actual average, not 100% when any period is complete
  */
 const HabitProgressBars = () => {
-  const { habits, dailyProgress } = useHabit();
+  const { habits, dailyProgress, progressResetKey } = useHabit();
 
   // Calculate progress for each habit
-  const habitProgress = habits.map(habit => {
-    const progress = dailyProgress[habit._id] || {};
-    const morning = progress.morning || 0;
-    const afternoon = progress.afternoon || 0;
-    const evening = progress.evening || 0;
-    const night = progress.night || 0;
+  // GOLDEN RULE: ALL values MUST come from dailyProgress, never from habit object
+  const habitProgress = useMemo(() => {
+    console.log(`📊 Recalculating habitProgress (resetKey: ${progressResetKey})`);
+    
+    return habits.map(habit => {
+      const progress = dailyProgress[habit._id] || {};
+      const morning = progress.morning || 0;
+      const afternoon = progress.afternoon || 0;
+      const evening = progress.evening || 0;
+      const night = progress.night || 0;
 
     // Count how many cells are at 100%
     let completedCells = 0;
@@ -50,6 +54,7 @@ const HabitProgressBars = () => {
       average,
     };
   });
+  }, [habits, dailyProgress, progressResetKey]);
 
   return (
     <div className="glass-card p-5 hover-lift">

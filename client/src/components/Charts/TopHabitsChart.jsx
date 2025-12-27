@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useHabit, TIME_PERIODS } from '../../context/HabitContext';
 import { Trophy, Award, Medal, Star, Sun, Sunrise, Sunset, Moon } from 'lucide-react';
 
@@ -25,46 +25,53 @@ const RANK_CONFIG = [
  * If ANY period is 100%, show 100% (task is complete)
  */
 const TopHabitsChart = () => {
-  const { habits, dailyProgress } = useHabit();
+  const { habits, dailyProgress, progressResetKey } = useHabit();
 
   // Calculate display value for each habit
-  const habitCompletions = habits.map(habit => {
-    const progress = dailyProgress[habit._id] || {};
-    const morning = progress.morning || 0;
-    const afternoon = progress.afternoon || 0;
-    const evening = progress.evening || 0;
-    const night = progress.night || 0;
+  // GOLDEN RULE: ALL values derived from dailyProgress, never from habit properties
+  const { habitCompletions, topHabits } = useMemo(() => {
+    console.log(`🏆 Recalculating topHabits (resetKey: ${progressResetKey})`);
     
-    // Check if task is complete (ANY period at 100%)
-    const isComplete = morning === 100 || afternoon === 100 || evening === 100 || night === 100;
-    
-    // Calculate display value
-    let displayValue;
-    if (isComplete) {
-      displayValue = 100;
-    } else {
-      // Average of ONLY FILLED periods (> 0%)
-      const filledPeriods = [morning, afternoon, evening, night].filter(p => p > 0);
-      displayValue = filledPeriods.length > 0 
-        ? Math.round(filledPeriods.reduce((sum, p) => sum + p, 0) / filledPeriods.length)
-        : 0;
-    }
-    
-    return {
-      ...habit,
-      displayValue,
-      isComplete,
-      morning,
-      afternoon,
-      evening,
-      night,
-    };
-  });
+    const completions = habits.map(habit => {
+      const progress = dailyProgress[habit._id] || {};
+      const morning = progress.morning || 0;
+      const afternoon = progress.afternoon || 0;
+      const evening = progress.evening || 0;
+      const night = progress.night || 0;
+      
+      // Check if task is complete (ANY period at 100%)
+      const isComplete = morning === 100 || afternoon === 100 || evening === 100 || night === 100;
+      
+      // Calculate display value
+      let displayValue;
+      if (isComplete) {
+        displayValue = 100;
+      } else {
+        // Average of ONLY FILLED periods (> 0%)
+        const filledPeriods = [morning, afternoon, evening, night].filter(p => p > 0);
+        displayValue = filledPeriods.length > 0 
+          ? Math.round(filledPeriods.reduce((sum, p) => sum + p, 0) / filledPeriods.length)
+          : 0;
+      }
+      
+      return {
+        ...habit,
+        displayValue,
+        isComplete,
+        morning,
+        afternoon,
+        evening,
+        night,
+      };
+    });
 
-  // Sort by displayValue and take top 5
-  const topHabits = habitCompletions
-    .sort((a, b) => b.displayValue - a.displayValue)
-    .slice(0, 5);
+    // Sort by displayValue and take top 5
+    const top = completions
+      .sort((a, b) => b.displayValue - a.displayValue)
+      .slice(0, 5);
+
+    return { habitCompletions: completions, topHabits: top };
+  }, [habits, dailyProgress, progressResetKey]);
 
   return (
     <div className="glass-card p-5 hover-lift">
