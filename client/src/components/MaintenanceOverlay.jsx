@@ -1,6 +1,9 @@
 import React, { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 
+// API base URL for static assets
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 /**
  * MaintenanceOverlay Component
  * 
@@ -59,8 +62,8 @@ const MaintenanceOverlay = () => {
 
   return (
     <div ref={containerRef} className="overlay" style={{ opacity: 0 }}>
-      {/* Full-Screen Background Image */}
-      <img ref={imageRef} src="/masha.png" alt="" className="bg-image" />
+      {/* Full-Screen Background Image - Fetched from Server */}
+      <img ref={imageRef} src={`${API_BASE_URL}/static/images/masha.png`} alt="" className="bg-image" />
 
       {/* Dark Gradient Overlay for Text Readability */}
       <div className="gradient-overlay" />
