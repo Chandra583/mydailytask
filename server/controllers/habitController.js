@@ -2,13 +2,15 @@ const Habit = require('../models/Habit');
 const { validationResult } = require('express-validator');
 
 /**
- * @desc    Get all habits for a user
+ * @desc    Get all habits for a user (including archived for historical views)
  * @route   GET /api/habits
  * @access  Private
  */
 const getHabits = async (req, res) => {
   try {
-    const habits = await Habit.find({ userId: req.user._id, isActive: true })
+    // Return ALL habits (active + archived) - frontend will filter based on selectedDate
+    // This allows archived tasks to appear in historical views
+    const habits = await Habit.find({ userId: req.user._id })
       .sort({ order: 1, createdAt: 1 });
 
     res.json(habits);
@@ -81,9 +83,15 @@ const updateHabit = async (req, res) => {
 };
 
 /**
- * @desc    Delete habit (soft delete)
+ * @desc    Archive habit (soft delete with date-scoping)
  * @route   DELETE /api/habits/:id
  * @access  Private
+ * 
+ * ARCHIVE LOGIC:
+ * - Sets archivedAt to current date
+ * - Task is hidden from this date onwards
+ * - Task still appears in historical views (dates before archivedAt)
+ * - Progress data is preserved
  */
 const deleteHabit = async (req, res) => {
   try {
@@ -98,11 +106,19 @@ const deleteHabit = async (req, res) => {
       return res.status(401).json({ message: 'Not authorized' });
     }
 
-    // Soft delete - set isActive to false
-    habit.isActive = false;
+    // ARCHIVE: Set archivedAt to TODAY (not hard delete)
+    // This preserves historical data while hiding from current/future views
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Start of today
+    
+    habit.archivedAt = today;
+    habit.isActive = false; // Also mark inactive for backwards compatibility
     await habit.save();
 
-    res.json({ message: 'Habit deleted successfully' });
+    res.json({ 
+      message: 'Habit archived successfully',
+      archivedAt: today
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

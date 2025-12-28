@@ -10,7 +10,7 @@ import {
   CartesianGrid
 } from 'recharts';
 import { useHabit, TIME_PERIODS, getCurrentTimePeriod } from '../../context/HabitContext';
-import { TrendingUp, Sun, Sunrise, Sunset, Moon, CheckCircle2, Calendar } from 'lucide-react';
+import { TrendingUp, Sun, Sunrise, Sunset, Moon, CheckCircle2, Calendar, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 
 // Period icons mapping
@@ -49,6 +49,20 @@ const DailyProgressTrendChart = () => {
   
   // Format date for display
   const displayDate = format(selectedDate, 'MMMM d, yyyy');
+  
+  // CRITICAL: Check if there's any progress data for the selected date
+  const hasAnyProgress = useMemo(() => {
+    if (Object.keys(dailyProgress).length === 0) return false;
+    
+    // Check if any habit has any progress > 0
+    for (const habitId in dailyProgress) {
+      const progress = dailyProgress[habitId];
+      if (progress && (progress.morning > 0 || progress.afternoon > 0 || progress.evening > 0 || progress.night > 0)) {
+        return true;
+      }
+    }
+    return false;
+  }, [dailyProgress, progressResetKey]);
   
   // Update current time every minute (only matters for today view)
   useEffect(() => {
@@ -273,6 +287,19 @@ const DailyProgressTrendChart = () => {
 
       {/* Chart */}
       <div className="h-64">
+        {/* No Activity State */}
+        {!hasAnyProgress && !isViewingToday && (
+          <div className="h-full flex flex-col items-center justify-center">
+            <div className="w-16 h-16 rounded-xl bg-gray-700/50 flex items-center justify-center mb-4">
+              <AlertCircle size={32} className="text-gray-500" />
+            </div>
+            <p className="text-gray-400 text-sm font-medium">No activity on this day</p>
+            <p className="text-gray-500 text-xs mt-1">No tasks were completed on {displayDate}</p>
+          </div>
+        )}
+        
+        {/* Show chart if viewing today OR if there's progress */}
+        {(isViewingToday || hasAnyProgress) && (
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart
             data={hourlyData}
@@ -362,6 +389,7 @@ const DailyProgressTrendChart = () => {
             />
           </AreaChart>
         </ResponsiveContainer>
+        )}
       </div>
 
       {/* Time Period Labels - Show average percentage */}

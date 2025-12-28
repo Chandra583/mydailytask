@@ -10,14 +10,19 @@ import {
   LabelList
 } from 'recharts';
 import { useHabit, TIME_PERIODS, getCurrentTimePeriod } from '../../context/HabitContext';
+import { format } from 'date-fns';
 
 /**
  * Time Period Performance Bar Chart
  * Vertical grouped bars showing completion for each time period
  */
 const TimePeriodBarChart = () => {
-  const { dailyStats, progressResetKey } = useHabit();
+  const { dailyStats, progressResetKey, selectedDate, isToday } = useHabit();
   const currentPeriod = getCurrentTimePeriod();
+  
+  // CRITICAL: Check if viewing today or a past date
+  const isViewingToday = isToday();
+  const displayDate = format(selectedDate, 'MMM d');
 
   // GOLDEN RULE: Chart data derived from dailyStats (which comes from dailyProgress)
   const chartData = useMemo(() => {
@@ -92,7 +97,7 @@ const TimePeriodBarChart = () => {
         <div>
           <h3 className="text-white font-bold text-lg flex items-center gap-2">
             <span>📊</span>
-            DAILY TASK PROGRESS BY TIME
+            {isViewingToday ? 'DAILY TASK PROGRESS BY TIME' : `TASK PROGRESS FOR ${displayDate.toUpperCase()}`}
           </h3>
           <p className="text-gray-400 text-sm">Task completion percentage per time period</p>
         </div>

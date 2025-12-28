@@ -37,8 +37,12 @@ const LeftInfoPanel = () => {
     dailyStats, 
     selectedDate, 
     getFormattedDate,
-    progressResetKey
+    progressResetKey,
+    isToday
   } = useHabit();
+  
+  // CRITICAL: Check if viewing today or a past date
+  const isViewingToday = isToday();
 
   const [currentTime, setCurrentTime] = useState(new Date());
   const currentPeriod = getCurrentTimePeriod();
@@ -125,7 +129,7 @@ const LeftInfoPanel = () => {
           <div className="flex justify-between items-center">
             <span className="label-text flex items-center gap-2">
               <Calendar size={14} className="text-gray-500" />
-              Today's Date
+              {isViewingToday ? "Today's Date" : 'Selected Date'}
             </span>
             <span className="text-white font-semibold text-sm">{getFormattedDate()}</span>
           </div>
@@ -239,7 +243,7 @@ const LeftInfoPanel = () => {
           <div className="glass-card-light p-4 rounded-xl border-l-4 border-accent-pink transition-all hover:scale-[1.02]">
             <div className="flex items-center gap-2 text-white font-medium text-sm">
               <BarChart3 size={16} className="text-accent-pink" />
-              <span>Today's Progress</span>
+              <span>{isViewingToday ? "Today's Progress" : 'Progress'}</span>
             </div>
             <div className="flex items-center justify-between mt-2">
               <span className="text-gray-400 text-xs">

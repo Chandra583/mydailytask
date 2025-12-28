@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useHabit, TIME_PERIODS, getCurrentTimePeriod, PERCENTAGE_OPTIONS } from '../../context/HabitContext';
-import { CheckCircle2, Lock } from 'lucide-react';
+import { CheckCircle2, Lock, Trash2, AlertTriangle } from 'lucide-react';
 
 /**
  * Daily Habit Grid Component
@@ -14,12 +14,15 @@ const DailyHabitGrid = () => {
     updateHabitProgress,
     getHabitProgress,
     addHabit,
+    deleteHabit,
   } = useHabit();
 
   const [selectedCell, setSelectedCell] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newHabitName, setNewHabitName] = useState('');
   const [newHabitColor, setNewHabitColor] = useState('#e91e63');
+  const [deleteConfirm, setDeleteConfirm] = useState(null); // {id, name} of habit to delete
+  const [isDeleting, setIsDeleting] = useState(false);
   const currentPeriod = getCurrentTimePeriod();
 
   const timePeriods = Object.values(TIME_PERIODS);
@@ -86,6 +89,28 @@ const DailyHabitGrid = () => {
       setNewHabitName('');
       setNewHabitColor('#e91e63');
       setShowAddModal(false);
+    }
+  };
+
+  /**
+   * Handle delete confirmation
+   */
+  const handleDeleteClick = (habit) => {
+    setDeleteConfirm({ id: habit._id, name: habit.name });
+  };
+
+  /**
+   * Confirm and execute delete (optimistic UI)
+   */
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirm) return;
+    
+    setIsDeleting(true);
+    const result = await deleteHabit(deleteConfirm.id);
+    setIsDeleting(false);
+    
+    if (result.success) {
+      setDeleteConfirm(null);
     }
   };
 
@@ -219,8 +244,8 @@ const DailyHabitGrid = () => {
                 key={habit._id} 
                 className="flex items-center hover:bg-primary-slate hover:bg-opacity-30 rounded transition"
               >
-                {/* Habit Name + Quick Complete Button */}
-                <div className="w-48 flex-shrink-0 px-3 py-3 flex items-center gap-2">
+                {/* Habit Name + Quick Complete Button + Delete */}
+                <div className="w-48 flex-shrink-0 px-3 py-3 flex items-center gap-2 group">
                   <div
                     className="w-3 h-3 rounded-full flex-shrink-0"
                     style={{ backgroundColor: habit.color }}
@@ -228,6 +253,14 @@ const DailyHabitGrid = () => {
                   <span className="text-white text-sm truncate font-medium flex-1" title={habit.name}>
                     {habit.name}
                   </span>
+                  {/* Archive Button - appears on hover */}
+                  <button
+                    onClick={() => handleDeleteClick(habit)}
+                    className="flex-shrink-0 p-1.5 rounded-lg bg-amber-600/20 hover:bg-amber-600 text-amber-400 hover:text-white transition-all opacity-0 group-hover:opacity-100"
+                    title="Archive task (hide from today onwards)"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                   {/* Quick Complete Button - marks current period as 100% */}
                   {!isTaskCompleted(habit._id) && (
                     <button
@@ -409,6 +442,59 @@ const DailyHabitGrid = () => {
           className="fixed inset-0 z-40" 
           onClick={closeSelector}
         ></div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Overlay */}
+          <div 
+            className="absolute inset-0 bg-black bg-opacity-60"
+            onClick={() => !isDeleting && setDeleteConfirm(null)}
+          ></div>
+
+          {/* Modal Content */}
+          <div className="relative bg-primary-navy rounded-xl p-6 w-full max-w-sm mx-4 shadow-2xl animate-fade-in border border-amber-500/30">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-amber-500/20 flex items-center justify-center">
+                <AlertTriangle size={24} className="text-amber-500" />
+              </div>
+              <div>
+                <h2 className="text-white text-lg font-bold">Archive Task</h2>
+                <p className="text-gray-400 text-sm">Hide from today onwards</p>
+              </div>
+            </div>
+
+            <p className="text-gray-300 text-sm mb-6">
+              Are you sure you want to archive <span className="text-white font-semibold">"{deleteConfirm.name}"</span>?
+              <br />
+              <span className="text-green-400 text-xs">✓ Task will still appear in past dates with its progress</span>
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirm(null)}
+                disabled={isDeleting}
+                className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="flex-1 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg transition flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {isDeleting ? (
+                  <>Archiving...</>
+                ) : (
+                  <><Trash2 size={16} /> Archive</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Add Task Modal */}

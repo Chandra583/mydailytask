@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { useHabit, TIME_PERIODS } from '../../context/HabitContext';
-import { Trophy, Award, Medal, Star, Sun, Sunrise, Sunset, Moon } from 'lucide-react';
+import { Trophy, Award, Medal, Star, Sun, Sunrise, Sunset, Moon, Calendar } from 'lucide-react';
+import { format } from 'date-fns';
 
 // Period icons mapping
 const PERIOD_ICONS = {
@@ -25,7 +26,11 @@ const RANK_CONFIG = [
  * If ANY period is 100%, show 100% (task is complete)
  */
 const TopHabitsChart = () => {
-  const { habits, dailyProgress, progressResetKey } = useHabit();
+  const { habits, dailyProgress, progressResetKey, selectedDate, isToday } = useHabit();
+  
+  // CRITICAL: Check if viewing today or a past date
+  const isViewingToday = isToday();
+  const displayDate = format(selectedDate, 'MMM d');
 
   // Calculate display value for each habit
   // GOLDEN RULE: ALL values derived from dailyProgress, never from habit properties
@@ -77,7 +82,17 @@ const TopHabitsChart = () => {
     <div className="glass-card p-5 hover-lift">
       <h3 className="section-title mb-4 flex items-center gap-2">
         <Trophy size={18} className="text-yellow-500" />
-        TOP 5 TASKS TODAY
+        {isViewingToday ? (
+          'TOP 5 TASKS TODAY'
+        ) : (
+          <span className="flex items-center gap-2">
+            TOP 5 TASKS
+            <span className="text-gray-500 text-xs font-normal flex items-center gap-1">
+              <Calendar size={12} />
+              {displayDate}
+            </span>
+          </span>
+        )}
       </h3>
 
       {topHabits.length === 0 ? (
@@ -116,7 +131,7 @@ const TopHabitsChart = () => {
                         {habit.name}
                       </span>
                       <span className="text-gray-500 text-xs">
-                        #{index + 1} Today
+                        #{index + 1} {isViewingToday ? 'Today' : displayDate}
                       </span>
                     </div>
                   </div>

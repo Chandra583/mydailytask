@@ -81,7 +81,8 @@ export const useHabit = () => {
  * Manages habits, daily progress with time periods, and statistics
  */
 export const HabitProvider = ({ children }) => {
-  const [habits, setHabits] = useState([]);
+  // ALL habits including archived ones (raw from API)
+  const [allHabits, setAllHabits] = useState([]);
   const [dailyProgress, setDailyProgress] = useState({});
   // FIXED: historicalProgress is now properly scoped and cleared on date changes
   const [historicalProgress, setHistoricalProgress] = useState({});
@@ -122,6 +123,25 @@ export const HabitProvider = ({ children }) => {
   }, []);
 
   /**
+   * ARCHIVE FILTER: Filter habits based on selectedDate vs archivedAt
+   * - If archivedAt is null → show the habit
+   * - If archivedAt exists AND selectedDate < archivedAt → show the habit (historical view)
+   * - If archivedAt exists AND selectedDate >= archivedAt → hide the habit
+   */
+  const habits = useMemo(() => {
+    const selectedDateStart = startOfDay(selectedDate);
+    
+    return allHabits.filter(habit => {
+      // If not archived, always show
+      if (!habit.archivedAt) return true;
+      
+      // If archived, only show for dates BEFORE the archive date
+      const archivedDate = startOfDay(new Date(habit.archivedAt));
+      return selectedDateStart < archivedDate;
+    });
+  }, [allHabits, selectedDate]);
+
+  /**
    * Format date for display
    */
   const getFormattedDate = () => {
@@ -143,7 +163,7 @@ export const HabitProvider = ({ children }) => {
   const fetchHabits = useCallback(async () => {
     try {
       const response = await api.get('/habits');
-      setHabits(response.data);
+      setAllHabits(response.data); // Store ALL habits including archived
       
       // Calculate user start date from earliest habit creation
       if (response.data.length > 0) {
@@ -409,7 +429,7 @@ export const HabitProvider = ({ children }) => {
   const addHabit = async (habitData) => {
     try {
       const response = await api.post('/habits', habitData);
-      setHabits([...habits, response.data]);
+      setAllHabits([...allHabits, response.data]);
       toast.success('Habit added successfully');
       return { success: true };
     } catch (error) {
@@ -424,7 +444,7 @@ export const HabitProvider = ({ children }) => {
   const updateHabit = async (habitId, habitData) => {
     try {
       const response = await api.put(`/habits/${habitId}`, habitData);
-      setHabits(habits.map((h) => (h._id === habitId ? response.data : h)));
+      setAllHabits(allHabits.map((h) => (h._id === habitId ? response.data : h)));
       toast.success('Habit updated successfully');
       return { success: true };
     } catch (error) {
@@ -434,16 +454,32 @@ export const HabitProvider = ({ children }) => {
   };
 
   /**
-   * Delete habit
+   * Archive habit (soft delete with date-scoping)
+   * Task will be hidden from today onwards but still visible in historical views
    */
   const deleteHabit = async (habitId) => {
     try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      // Optimistic update - set archivedAt locally BEFORE API call
+      setAllHabits(allHabits.map((h) => 
+        h._id === habitId 
+          ? { ...h, archivedAt: today.toISOString(), isActive: false }
+          : h
+      ));
+      
       await api.delete(`/habits/${habitId}`);
-      setHabits(habits.filter((h) => h._id !== habitId));
-      toast.success('Habit deleted successfully');
+      toast.success('Task archived successfully');
       return { success: true };
     } catch (error) {
-      toast.error('Failed to delete habit');
+      // Rollback on error
+      setAllHabits(allHabits.map((h) => 
+        h._id === habitId 
+          ? { ...h, archivedAt: null, isActive: true }
+          : h
+      ));
+      toast.error('Failed to archive task');
       return { success: false };
     }
   };

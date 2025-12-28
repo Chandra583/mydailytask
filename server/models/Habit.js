@@ -34,6 +34,12 @@ const habitSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  // ARCHIVE SUPPORT: When set, task is hidden from this date onwards
+  // but still visible for historical dates before archivedAt
+  archivedAt: {
+    type: Date,
+    default: null
+  },
   createdAt: {
     type: Date,
     default: Date.now

@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { useHabit } from '../../context/HabitContext';
+import { format } from 'date-fns';
 
 /**
  * Today Progress Donut Chart
@@ -8,7 +9,11 @@ import { useHabit } from '../../context/HabitContext';
  * RULE: If ANY period is 100%, task is COMPLETE
  */
 const TodayProgressDonut = () => {
-  const { habits, dailyProgress, dailyStats, progressResetKey } = useHabit();
+  const { habits, dailyProgress, dailyStats, progressResetKey, selectedDate, isToday } = useHabit();
+  
+  // CRITICAL: Check if viewing today or a past date
+  const isViewingToday = isToday();
+  const displayDate = format(selectedDate, 'MMM d');
 
   // Calculate task-based completion
   // GOLDEN RULE: ALL values derived from dailyProgress, never from habit properties
@@ -68,7 +73,7 @@ const TodayProgressDonut = () => {
     <div className="bg-primary-navy rounded-lg p-4">
       <h3 className="text-white font-bold text-sm mb-4 flex items-center gap-2">
         <span>🎯</span>
-        TODAY'S PROGRESS
+        {isViewingToday ? "TODAY'S PROGRESS" : `PROGRESS FOR ${displayDate.toUpperCase()}`}
       </h3>
 
       {/* Donut Chart */}
@@ -150,7 +155,7 @@ const TodayProgressDonut = () => {
       </div>
 
       {/* Progress Indicator */}
-      {overallPercentage >= 80 && (
+      {overallPercentage >= 80 && isViewingToday && (
         <div className="mt-4 p-3 bg-green-900 bg-opacity-30 rounded-lg border border-green-700">
           <p className="text-green-400 text-sm text-center flex items-center justify-center gap-2">
             <span>🎉</span>
