@@ -3,9 +3,11 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import MaintenanceOverlay from '../MaintenanceOverlay';
 
-// User email that should see maintenance screen
-// const MAINTENANCE_USER_EMAIL = 'nagashreenagashreecm502@gmail.com';
-const MAINTENANCE_USER_EMAIL = 'chandrashekhargawda2000@gmail.com';
+// User emails that should see maintenance screen
+const MAINTENANCE_USER_EMAILS = [
+  'nagashreenagashreecm502@gmail.com',
+  'chandrashekhargawda2000@gmail.com'
+];
 
 /**
  * Protected Route Component
@@ -28,8 +30,8 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to="/login" replace />;
   }
 
-  // MAINTENANCE MODE: Show overlay for specific user
-  if (user?.email === MAINTENANCE_USER_EMAIL) {
+  // MAINTENANCE MODE: Show overlay for specific users
+  if (user?.email && MAINTENANCE_USER_EMAILS.includes(user.email)) {
     return <MaintenanceOverlay />;
   }
 
