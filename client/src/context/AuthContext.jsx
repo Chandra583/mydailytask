@@ -1,7 +1,10 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import api from '../utils/api';
 
 const AuthContext = createContext();
+
+// Session expiry time: 2 hours in milliseconds
+const SESSION_EXPIRY_TIME = 2 * 60 * 60 * 1000; // 2 hours
 
 /**
  * Custom hook to use auth context
@@ -22,16 +25,55 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Check if user is logged in on mount
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    const savedUser = localStorage.getItem('user');
+  /**
+   * Logout function - clears session storage
+   */
+  const logout = useCallback(() => {
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
+    sessionStorage.removeItem('loginTime');
+    setUser(null);
+  }, []);
+
+  /**
+   * Check if session has expired
+   */
+  const isSessionExpired = useCallback(() => {
+    const loginTime = sessionStorage.getItem('loginTime');
+    if (!loginTime) return true;
     
-    if (token && savedUser) {
-      setUser(JSON.parse(savedUser));
+    const elapsed = Date.now() - parseInt(loginTime, 10);
+    return elapsed > SESSION_EXPIRY_TIME;
+  }, []);
+
+  // Check session on mount and set up periodic check
+  useEffect(() => {
+    const token = sessionStorage.getItem('token');
+    const savedUser = sessionStorage.getItem('user');
+    const loginTime = sessionStorage.getItem('loginTime');
+    
+    if (token && savedUser && loginTime) {
+      // Check if session has expired
+      if (isSessionExpired()) {
+        console.log('Session expired - logging out');
+        logout();
+      } else {
+        setUser(JSON.parse(savedUser));
+      }
     }
     setLoading(false);
-  }, []);
+
+    // Set up periodic session check every minute
+    const intervalId = setInterval(() => {
+      if (sessionStorage.getItem('token') && isSessionExpired()) {
+        console.log('Session expired - auto logout');
+        logout();
+        window.location.href = '/login';
+      }
+    }, 60000); // Check every minute
+
+    return () => clearInterval(intervalId);
+  }, [isSessionExpired, logout]);
 
   /**
    * Login function
@@ -41,8 +83,10 @@ export const AuthProvider = ({ children }) => {
       const response = await api.post('/auth/login', { email, password });
       const { token, ...userData } = response.data;
       
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(userData));
+      // Use sessionStorage with login timestamp
+      sessionStorage.setItem('token', token);
+      sessionStorage.setItem('user', JSON.stringify(userData));
+      sessionStorage.setItem('loginTime', Date.now().toString());
       setUser(userData);
       
       return { success: true };
@@ -66,8 +110,10 @@ export const AuthProvider = ({ children }) => {
       });
       const { token, ...userData } = response.data;
       
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(userData));
+      // Use sessionStorage with login timestamp
+      sessionStorage.setItem('token', token);
+      sessionStorage.setItem('user', JSON.stringify(userData));
+      sessionStorage.setItem('loginTime', Date.now().toString());
       setUser(userData);
       
       return { success: true };
@@ -79,18 +125,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  /**
-   * Logout function
-   */
-  const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setUser(null);
-  };
 
-  /**
-   * Google Login function
-   */
   const googleLogin = async (credentialResponse) => {
     try {
       // Decode the JWT to get user info
@@ -107,8 +142,10 @@ export const AuthProvider = ({ children }) => {
 
       const { token, ...userData } = response.data;
 
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(userData));
+      // Use sessionStorage with login timestamp
+      sessionStorage.setItem('token', token);
+      sessionStorage.setItem('user', JSON.stringify(userData));
+      sessionStorage.setItem('loginTime', Date.now().toString());
       setUser(userData);
 
       return { success: true };
