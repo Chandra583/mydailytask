@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useHabit } from '../../context/HabitContext';
-import { Plus, Sparkles, X, Check, Palette } from 'lucide-react';
+import { Plus, Sparkles, X, Check, Palette, Command } from 'lucide-react';
 
 /**
  * Floating Add Task Button with Modal
@@ -12,6 +12,22 @@ const AddHabitButton = () => {
   const [habitName, setHabitName] = useState('');
   const [habitColor, setHabitColor] = useState('#e91e63');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Keyboard shortcut: Ctrl+N to open
+  const handleKeyDown = useCallback((e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+      e.preventDefault();
+      setIsOpen(true);
+    }
+    if (e.key === 'Escape' && isOpen) {
+      setIsOpen(false);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
 
   const colors = [
     '#e91e63', '#06b6d4', '#f59e0b', '#f97316', '#8b5cf6',
@@ -38,27 +54,41 @@ const AddHabitButton = () => {
 
   return (
     <>
-      {/* Floating Button - Fixed Bottom Right */}
+      {/* Floating Button - Fixed Bottom Right - IMPROVED VISIBILITY */}
       <div className="fixed bottom-8 right-8 z-[9999] group">
-        {/* Tooltip Label - Shows on Hover */}
-        <div className="absolute right-20 top-1/2 -translate-y-1/2 glass-card px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 transform group-hover:translate-x-0 translate-x-2">
-          <span className="text-white text-sm font-medium whitespace-nowrap flex items-center gap-2">
-            <Plus size={14} />
-            Add New Task
-          </span>
+        {/* Tooltip Label with Keyboard Shortcut - Always Visible Hint */}
+        <div className="absolute right-full mr-3 top-1/2 -translate-y-1/2">
+          <div className="bg-slate-800/90 backdrop-blur-sm px-3 py-2 rounded-xl border border-slate-700/50 shadow-xl opacity-0 group-hover:opacity-100 transition-all duration-300 transform group-hover:translate-x-0 translate-x-2">
+            <span className="text-white text-sm font-medium whitespace-nowrap flex items-center gap-2">
+              Add New Task
+            </span>
+            <div className="flex items-center gap-1 mt-1 text-slate-400 text-xs">
+              <Command size={10} />
+              <span>Ctrl+N</span>
+            </div>
+          </div>
         </div>
         
-        {/* Main Button */}
+        {/* Pulsing Ring Effect */}
+        <div className="absolute inset-0 rounded-2xl bg-pink-500/30 animate-ping" style={{ animationDuration: '2s' }} />
+        
+        {/* Main Button - LARGER with bounce animation */}
         <button
           onClick={() => setIsOpen(true)}
-          className="w-16 h-16 btn-secondary rounded-2xl flex items-center justify-center transition-all duration-300 hover:scale-110 hover:rotate-90 animate-bounce-in"
+          className="relative w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-300 hover:scale-110 hover:rotate-90 animate-bounce-subtle"
           style={{ 
-            boxShadow: '0 0 40px rgba(233, 30, 99, 0.5)',
+            boxShadow: '0 0 50px rgba(233, 30, 99, 0.6), 0 0 100px rgba(233, 30, 99, 0.3)',
             background: 'linear-gradient(135deg, #e91e63 0%, #ec4899 100%)'
           }}
+          title="Add New Task (Ctrl+N)"
         >
-          <Plus size={32} strokeWidth={2.5} />
+          <Plus size={32} strokeWidth={2.5} className="text-white" />
         </button>
+        
+        {/* Keyboard shortcut badge */}
+        <div className="absolute -top-2 -right-2 bg-slate-800 text-slate-300 text-[10px] px-1.5 py-0.5 rounded-md border border-slate-700 shadow-lg">
+          ⌘N
+        </div>
       </div>
 
       {/* Modal */}

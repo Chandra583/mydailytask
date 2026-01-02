@@ -15,6 +15,8 @@ const DailyHabitGrid = () => {
     getHabitProgress,
     addHabit,
     deleteHabit,
+    isToday,
+    selectedDate,
   } = useHabit();
 
   const [selectedCell, setSelectedCell] = useState(null);
@@ -31,15 +33,24 @@ const DailyHabitGrid = () => {
   const periodOrder = ['morning', 'afternoon', 'evening', 'night'];
 
   /**
-   * Check if a period is in the FUTURE (should be locked)
-   * Past and current periods are editable
-   * Future periods are locked
+   * Check if a period should be locked
+   * FIXED: Only lock FUTURE time periods when viewing TODAY
+   * Past dates and future dates: ALL periods are editable
    */
-  const isPeriodInFuture = (periodId) => {
+  const isPeriodLocked = (periodId) => {
+    // Only apply time period restrictions when viewing TODAY
+    if (!isToday()) {
+      return false; // All periods editable for past/future dates
+    }
+    
+    // For today: lock future time periods only
     const currentIndex = periodOrder.indexOf(currentPeriod);
     const periodIndex = periodOrder.indexOf(periodId);
     return periodIndex > currentIndex;
   };
+
+  // Keep for backwards compatibility but use isPeriodLocked instead
+  const isPeriodInFuture = isPeriodLocked;
 
   const habitColors = [
     '#e91e63', '#00bcd4', '#ffc107', '#ff6b6b', '#7c4dff',
@@ -47,8 +58,8 @@ const DailyHabitGrid = () => {
   ];
 
   const handleCellClick = (habitId, period) => {
-    // Don't allow clicking on FUTURE periods (but past periods are ok)
-    if (isPeriodInFuture(period)) {
+    // Don't allow clicking on locked periods (future periods on today only)
+    if (isPeriodLocked(period)) {
       return;
     }
     setSelectedCell({ habitId, period });
@@ -288,25 +299,25 @@ const DailyHabitGrid = () => {
                   {timePeriods.map((period) => {
                     const percentage = getHabitProgress(habit._id, period.id);
                     const isSelected = selectedCell?.habitId === habit._id && selectedCell?.period === period.id;
-                    const isCurrent = currentPeriod === period.id;
-                    const isFuture = isPeriodInFuture(period.id);
+                    const isCurrent = currentPeriod === period.id && isToday();
+                    const isLocked = isPeriodLocked(period.id);
 
                     return (
                       <div key={period.id} className="relative">
                         <button
                           onClick={() => handleCellClick(habit._id, period.id)}
-                          disabled={isFuture}
+                          disabled={isLocked}
                           className={`w-full h-12 rounded-lg flex items-center justify-center font-bold text-sm transition-all duration-300 ${
                             isCurrent ? 'ring-2 ring-white ring-opacity-30' : ''
                           } ${
-                            isFuture 
+                            isLocked 
                               ? 'opacity-50 cursor-not-allowed' 
                               : 'hover:scale-105 hover:ring-2 hover:ring-white hover:ring-opacity-50'
                           }`}
                           style={getCellStyle(percentage, period.color)}
-                          title={isFuture ? 'Future time period - locked' : `Click to set ${period.name} progress`}
+                          title={isLocked ? 'Future time period - locked' : `Click to set ${period.name} progress`}
                         >
-                          {isFuture && percentage === 0 ? (
+                          {isLocked && percentage === 0 ? (
                             <Lock size={14} className="text-gray-500" />
                           ) : percentage === 100 ? (
                             <span className="flex items-center gap-1 text-white">
@@ -323,7 +334,7 @@ const DailyHabitGrid = () => {
                         </button>
 
                         {/* Percentage Selector Dropdown */}
-                        {isSelected && !isFuture && (() => {
+                        {isSelected && !isLocked && (() => {
                           const { disabled, options, message } = getAvailableOptions(habit._id, period.id);
                           
                           if (disabled) {

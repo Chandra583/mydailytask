@@ -23,6 +23,9 @@ const getHabits = async (req, res) => {
  * @desc    Create new habit
  * @route   POST /api/habits
  * @access  Private
+ * 
+ * SUPPORTS: createdForDate parameter to create habits for specific dates
+ * This allows users viewing a future/past date to create habits for that date.
  */
 const createHabit = async (req, res) => {
   const errors = validationResult(req);
@@ -30,15 +33,27 @@ const createHabit = async (req, res) => {
     return res.status(400).json({ errors: errors.array() });
   }
 
-  const { name, category, color, goal } = req.body;
+  const { name, category, color, goal, createdForDate } = req.body;
 
   try {
+    // If createdForDate is provided, use it as the createdAt date
+    // This allows habits to be "created" for specific dates (past or future)
+    let createdAt = new Date();
+    
+    if (createdForDate) {
+      // Parse the date string (YYYY-MM-DD format)
+      const [year, month, day] = createdForDate.split('-').map(Number);
+      createdAt = new Date(year, month - 1, day, 0, 0, 0);
+      console.log(`📅 Creating habit for specific date: ${createdForDate}`);
+    }
+    
     const habit = await Habit.create({
       userId: req.user._id,
       name,
       category: category || 'General',
       color: color || '#3b82f6',
-      goal: goal || 'Daily'
+      goal: goal || 'Daily',
+      createdAt: createdAt
     });
 
     res.status(201).json(habit);

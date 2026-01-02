@@ -5,7 +5,9 @@ const {
   toggleProgress, 
   getStats,
   getDailyProgress,
-  updateDailyProgress
+  updateDailyProgress,
+  getWeeklyProgress,
+  getMonthlyOverview
 } = require('../controllers/progressController');
 const { protect } = require('../middleware/auth');
 
@@ -25,6 +27,20 @@ router.get('/stats', getStats);
  * @access  Private
  */
 router.get('/daily/:date', getDailyProgress);
+
+/**
+ * @route   GET /api/progress/weekly/:weekStart
+ * @desc    Get weekly progress overview (weekStart format: YYYY-MM-DD, should be Sunday)
+ * @access  Private
+ */
+router.get('/weekly/:weekStart', getWeeklyProgress);
+
+/**
+ * @route   GET /api/progress/monthly-overview/:year/:month
+ * @desc    Get monthly progress overview with heatmap data
+ * @access  Private
+ */
+router.get('/monthly-overview/:year/:month', getMonthlyOverview);
 
 /**
  * @route   POST /api/progress/daily

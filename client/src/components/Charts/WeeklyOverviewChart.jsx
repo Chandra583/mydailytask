@@ -10,21 +10,18 @@ import {
   ReferenceLine
 } from 'recharts';
 import { useHabit } from '../../context/HabitContext';
-import { format, subDays, isToday as checkIsToday, isBefore, startOfDay } from 'date-fns';
-import { Calendar, TrendingUp, AlertCircle } from 'lucide-react';
+import { format, subDays, isToday as checkIsToday, startOfDay } from 'date-fns';
+import { Calendar } from 'lucide-react';
 
 /**
  * Weekly Overview Chart
  * Horizontal bar chart showing last 7 days progress
- * Only shows days since user started using the app
+ * Always shows full 7 days - uses actual progress data
  */
 const WeeklyOverviewChart = () => {
   const { 
     selectedDate, 
     dailyStats, 
-    userStartDate, 
-    getDaysSinceStart,
-    isBeforeUserStart,
     historicalProgress,
     fetchProgressForDate,
     habits,
@@ -32,8 +29,8 @@ const WeeklyOverviewChart = () => {
     progressResetKey
   } = useHabit();
 
-  const daysSinceStart = getDaysSinceStart();
-  const daysToShow = Math.min(daysSinceStart, 7);
+  // Always show 7 days
+  const daysToShow = 7;
 
   // Fetch historical progress for the last 7 days
   useEffect(() => {
@@ -50,20 +47,22 @@ const WeeklyOverviewChart = () => {
   // Calculate completion for a date
   // GOLDEN RULE: For TODAY, use dailyProgress directly, NOT historicalProgress
   // ANY period at 100% = task is COMPLETE
+  // totalTasks = habits.length (all habits, not just those with progress)
   const calculateCompletion = (dateKey, isCurrentDay = false) => {
     // CRITICAL: For today, use current dailyProgress state
     // This ensures we never show stale historical data for today
     const progress = isCurrentDay ? dailyProgress : historicalProgress[dateKey];
     
-    if (!progress || Object.keys(progress).length === 0) {
+    // Use total habits count as denominator (consistent with daily stats)
+    const totalTasks = habits.length;
+    
+    if (!progress || Object.keys(progress).length === 0 || totalTasks === 0) {
       return 0;
     }
     
     let completedTasks = 0;
-    let totalTasks = 0;
     
     Object.values(progress).forEach(p => {
-      totalTasks++;
       // A task is complete if ANY period is 100%
       if ((p.morning || 0) === 100 || 
           (p.afternoon || 0) === 100 || 
@@ -73,10 +72,10 @@ const WeeklyOverviewChart = () => {
       }
     });
     
-    return totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+    return Math.round((completedTasks / totalTasks) * 100);
   };
 
-  // Generate last 7 days data based on user start date
+  // Generate last 7 days data - always show all 7 days with actual progress data
   // GOLDEN RULE: Today's data comes from dailyStats/dailyProgress, NOT historicalProgress
   const weeklyData = useMemo(() => {
     // Log for debugging
@@ -88,20 +87,17 @@ const WeeklyOverviewChart = () => {
       const date = subDays(today, 6 - i);
       const isCurrentDay = checkIsToday(date);
       const dateKey = format(date, 'yyyy-MM-dd');
-      const isBeforeStart = isBeforeUserStart(date);
       
       // For today, use current dailyStats; for past days, use historical data
       // CRITICAL: Never use historicalProgress for today's value
       let completion = 0;
-      if (!isBeforeStart) {
-        if (isCurrentDay) {
-          // GOLDEN RULE: For today, use ONLY dailyStats (derived from dailyProgress)
-          // This is the single source of truth for today's progress
-          completion = dailyStats?.overall || 0;
-        } else {
-          // For past days, calculate from historical data
-          completion = calculateCompletion(dateKey, false);
-        }
+      if (isCurrentDay) {
+        // GOLDEN RULE: For today, use ONLY dailyStats (derived from dailyProgress)
+        // This is the single source of truth for today's progress
+        completion = dailyStats?.overall || 0;
+      } else {
+        // For past days, calculate from historical data
+        completion = calculateCompletion(dateKey, false);
       }
       
       return {
@@ -111,15 +107,13 @@ const WeeklyOverviewChart = () => {
         dateKey,
         completion,
         isToday: isCurrentDay,
-        isBeforeStart,
-        dayNumber: isBeforeStart ? null : daysSinceStart - (6 - i),
+        hasData: completion > 0 || isCurrentDay,
       };
     });
-  }, [selectedDate, dailyStats?.overall, userStartDate, daysSinceStart, historicalProgress, dailyProgress, progressResetKey]);
+  }, [selectedDate, dailyStats?.overall, historicalProgress, dailyProgress, progressResetKey]);
 
   // Get color based on completion percentage
-  const getBarColor = (completion, isBeforeStart) => {
-    if (isBeforeStart) return '#1e293b'; // Dark gray for before start
+  const getBarColor = (completion) => {
     if (completion >= 90) return '#4ade80'; // Bright green
     if (completion >= 70) return '#fbbf24'; // Yellow
     if (completion >= 50) return '#fb923c'; // Orange
@@ -131,29 +125,19 @@ const WeeklyOverviewChart = () => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       
-      if (data.isBeforeStart) {
-        return (
-          <div className="bg-primary-slate p-3 rounded-lg shadow-lg border border-gray-600">
-            <p className="text-gray-400 font-bold">{data.day}, {data.fullDate}</p>
-            <p className="text-gray-500 text-sm">Before you started</p>
-            <p className="text-gray-500 text-xs">No data available</p>
-          </div>
-        );
-      }
-      
       return (
         <div className="bg-primary-slate p-3 rounded-lg shadow-lg border border-gray-600">
           <p className="text-white font-bold">
             {data.day}, {data.fullDate}
           </p>
-          <p className="text-2xl font-bold" style={{ color: getBarColor(data.completion, false) }}>
+          <p className="text-2xl font-bold" style={{ color: getBarColor(data.completion) }}>
             {data.completion}%
           </p>
           {data.isToday && (
             <p className="text-accent-pink text-xs mt-1">Today</p>
           )}
-          {data.dayNumber && (
-            <p className="text-gray-400 text-xs mt-1">Day {data.dayNumber}</p>
+          {!data.hasData && !data.isToday && (
+            <p className="text-gray-500 text-xs mt-1">No data recorded</p>
           )}
         </div>
       );
@@ -161,10 +145,9 @@ const WeeklyOverviewChart = () => {
     return null;
   };
 
-  // Calculate weekly average (only for active days)
-  const activeDays = weeklyData.filter(d => !d.isBeforeStart);
-  const weeklyAverage = activeDays.length > 0 
-    ? Math.round(activeDays.reduce((sum, d) => sum + d.completion, 0) / activeDays.length)
+  // Calculate weekly average
+  const weeklyAverage = weeklyData.length > 0 
+    ? Math.round(weeklyData.reduce((sum, d) => sum + d.completion, 0) / weeklyData.length)
     : 0;
 
   return (
@@ -174,37 +157,17 @@ const WeeklyOverviewChart = () => {
         <div>
           <h3 className="section-title flex items-center gap-2">
             <Calendar size={18} className="text-blue-400" />
-            {daysToShow < 7 
-              ? `LAST ${daysToShow} DAY${daysToShow === 1 ? '' : 'S'} TASK PROGRESS`
-              : 'LAST 7 DAYS TASK PROGRESS'
-            }
+            LAST 7 DAYS TASK PROGRESS
           </h3>
           <p className="text-gray-500 text-xs mt-1">
-            {daysToShow < 7 
-              ? `Showing ${daysToShow} day${daysToShow === 1 ? '' : 's'} since you started`
-              : 'Weekly completion overview'
-            }
+            Weekly completion overview
           </p>
         </div>
         <div className="text-right">
-          <div className="label-text">
-            {daysToShow < 7 ? `${daysToShow}-Day` : '7-Day'} Completion
-          </div>
+          <div className="label-text">7-Day Completion</div>
           <div className="stat-number text-xl">{weeklyAverage}%</div>
         </div>
       </div>
-
-      {/* Message for new users */}
-      {daysToShow < 7 && (
-        <div className="mb-4 glass-card-light p-3 rounded-xl border-l-4 border-accent-pink">
-          <p className="text-gray-400 text-sm flex items-center gap-2">
-            <TrendingUp size={16} className="text-accent-pink" />
-            <span>
-              Keep going! {7 - daysToShow} more day{7 - daysToShow === 1 ? '' : 's'} to see your full 7-day history.
-            </span>
-          </p>
-        </div>
-      )}
 
       {/* Chart */}
       <div className="h-56">
@@ -250,12 +213,11 @@ const WeeklyOverviewChart = () => {
               {weeklyData.map((entry, index) => (
                 <Cell 
                   key={`cell-${index}`} 
-                  fill={getBarColor(entry.completion, entry.isBeforeStart)}
+                  fill={getBarColor(entry.completion)}
                   stroke={entry.isToday ? '#fff' : 'transparent'}
                   strokeWidth={entry.isToday ? 2 : 0}
                   style={{
                     filter: entry.isToday ? 'drop-shadow(0 0 6px rgba(255,255,255,0.4))' : 'none',
-                    opacity: entry.isBeforeStart ? 0.3 : 1,
                   }}
                 />
               ))}
@@ -269,23 +231,19 @@ const WeeklyOverviewChart = () => {
         {weeklyData.map((day, index) => (
           <div 
             key={index}
-            className={`text-center p-2 rounded-lg transition-all ${
-              day.isBeforeStart 
-                ? 'opacity-30 cursor-not-allowed' 
-                : 'cursor-pointer hover:bg-gray-700'
-            } ${
+            className={`text-center p-2 rounded-lg transition-all cursor-pointer hover:bg-gray-700 ${
               day.isToday ? 'bg-accent-pink bg-opacity-20 ring-1 ring-accent-pink' : ''
             }`}
           >
             <div className="text-gray-400 text-xs">{day.day}</div>
-            <div className={`font-bold text-sm ${day.isBeforeStart ? 'text-gray-600' : 'text-white'}`}>
+            <div className="font-bold text-sm text-white">
               {day.date}
             </div>
             <div 
               className="text-xs font-bold mt-1"
-              style={{ color: day.isBeforeStart ? '#4b5563' : getBarColor(day.completion, false) }}
+              style={{ color: getBarColor(day.completion) }}
             >
-              {day.isBeforeStart ? '-' : `${day.completion}%`}
+              {day.completion}%
             </div>
           </div>
         ))}
@@ -310,8 +268,8 @@ const WeeklyOverviewChart = () => {
           <span className="text-gray-400 text-xs">1-49%</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded opacity-30" style={{ backgroundColor: '#1e293b' }}></div>
-          <span className="text-gray-400 text-xs">No data</span>
+          <div className="w-3 h-3 rounded" style={{ backgroundColor: '#374151' }}></div>
+          <span className="text-gray-400 text-xs">0%</span>
         </div>
       </div>
     </div>

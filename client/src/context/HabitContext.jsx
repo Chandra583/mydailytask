@@ -109,6 +109,38 @@ export const HabitProvider = ({ children }) => {
   // All memoized calculations MUST include this in dependencies to force recalculation.
   const [progressResetKey, setProgressResetKey] = useState(0);
 
+  // ==========================================
+  // API CALL DEDUPLICATION & CACHING
+  // ==========================================
+  
+  // Track in-flight requests to prevent duplicates
+  const inflightRequestsRef = useRef(new Set());
+  
+  // Debounce timer for rapid date navigation
+  const dateChangeDebounceRef = useRef(null);
+  
+  // Track if initial data has been loaded
+  const initialLoadDoneRef = useRef(false);
+  
+  // Request cache with timestamps
+  const requestCacheRef = useRef({
+    habits: { data: null, timestamp: 0 },
+    stats: { data: null, timestamp: 0 },
+    streaks: { data: null, timestamp: 0 },
+  });
+  
+  // Cache TTL in milliseconds (5 minutes for stats/streaks)
+  const CACHE_TTL = 5 * 60 * 1000;
+
+  /**
+   * Check if a cached value is still valid
+   */
+  const isCacheValid = (cacheKey) => {
+    const cached = requestCacheRef.current[cacheKey];
+    if (!cached || !cached.data) return false;
+    return Date.now() - cached.timestamp < CACHE_TTL;
+  };
+
   /**
    * SAFETY INVARIANT: Validate that progress data matches expected date
    * If mismatch, return empty object (fail safe)
@@ -158,12 +190,35 @@ export const HabitProvider = ({ children }) => {
   };
 
   /**
-   * Fetch habits
+   * Fetch habits with deduplication
    */
-  const fetchHabits = useCallback(async () => {
+  const fetchHabits = useCallback(async (forceRefresh = false) => {
+    const requestKey = 'habits';
+    
+    // Check if request is already in-flight
+    if (inflightRequestsRef.current.has(requestKey)) {
+      console.log('⏳ Skipping duplicate habits request');
+      return;
+    }
+    
+    // Check cache if not forcing refresh
+    if (!forceRefresh && isCacheValid('habits')) {
+      console.log('💾 Using cached habits data');
+      return;
+    }
+    
     try {
+      inflightRequestsRef.current.add(requestKey);
+      console.log('🔄 Fetching habits...');
+      
       const response = await api.get('/habits');
-      setAllHabits(response.data); // Store ALL habits including archived
+      setAllHabits(response.data);
+      
+      // Update cache
+      requestCacheRef.current.habits = {
+        data: response.data,
+        timestamp: Date.now()
+      };
       
       // Calculate user start date from earliest habit creation
       if (response.data.length > 0) {
@@ -173,32 +228,41 @@ export const HabitProvider = ({ children }) => {
         }, new Date());
         setUserStartDate(startOfDay(earliestHabit));
       } else {
-        // If no habits, use today as start date
         setUserStartDate(startOfDay(new Date()));
       }
     } catch (error) {
-      console.error('Error fetching habits:', error);
+      console.error('❌ Error fetching habits:', error);
       toast.error('Failed to load habits');
       setUserStartDate(startOfDay(new Date()));
+    } finally {
+      inflightRequestsRef.current.delete(requestKey);
     }
   }, []);
 
   /**
-   * Fetch daily progress data
+   * Fetch daily progress data with deduplication
    * CRITICAL FIX: Strict date-scoped fetch with validation.
-   * - Always clears state BEFORE fetch
-   * - Validates response date matches request
-   * - NEVER copies or falls back to previous day data
    */
-  const fetchDailyProgress = useCallback(async () => {
-    const dateKey = getDateKeyFromDate(selectedDate);
+  const fetchDailyProgress = useCallback(async (dateOverride = null) => {
+    const dateKey = dateOverride || getDateKeyFromDate(selectedDate);
+    const requestKey = `progress-${dateKey}`;
+    
+    // Check if request is already in-flight
+    if (inflightRequestsRef.current.has(requestKey)) {
+      console.log(`⏳ Skipping duplicate progress request for ${dateKey}`);
+      return;
+    }
+    
+    // Check if we already have this date in cache
+    if (historicalProgress.hasOwnProperty(dateKey) && !dateOverride) {
+      console.log(`💾 Using cached progress for ${dateKey}`);
+      setDailyProgress(historicalProgress[dateKey]);
+      return;
+    }
     
     try {
+      inflightRequestsRef.current.add(requestKey);
       setLoading(true);
-      
-      // CRITICAL: Clear current progress IMMEDIATELY before fetch
-      // This ensures no visual carryover from previous date
-      setDailyProgress({});
       
       // Track which date we're fetching
       lastFetchedDateRef.current = dateKey;
@@ -216,7 +280,8 @@ export const HabitProvider = ({ children }) => {
       }
       
       // SAFETY CHECK: If selectedDate changed during fetch, discard result
-      if (lastFetchedDateRef.current !== dateKey) {
+      const currentDateKey = getDateKeyFromDate(selectedDate);
+      if (!dateOverride && currentDateKey !== dateKey) {
         console.log(`⏩ Date changed during fetch. Discarding stale data.`);
         return;
       }
@@ -252,13 +317,13 @@ export const HabitProvider = ({ children }) => {
       
     } catch (error) {
       console.error(`❌ Failed to fetch progress for ${dateKey}:`, error.message);
-      // On error, ensure clean slate - NO fallback to old data
       setDailyProgress({});
       setIsNewDay(true);
     } finally {
+      inflightRequestsRef.current.delete(requestKey);
       setLoading(false);
     }
-  }, [selectedDate]);
+  }, [selectedDate, historicalProgress]);
 
   /**
    * Fetch progress for a specific date (for historical data / calendar views)
@@ -356,26 +421,72 @@ export const HabitProvider = ({ children }) => {
   }, [userStartDate]);
 
   /**
-   * Fetch statistics
+   * Fetch statistics with deduplication and caching
    */
-  const fetchStats = useCallback(async () => {
+  const fetchStats = useCallback(async (forceRefresh = false) => {
+    const requestKey = 'stats';
+    
+    // Check if request is already in-flight
+    if (inflightRequestsRef.current.has(requestKey)) {
+      console.log('⏳ Skipping duplicate stats request');
+      return;
+    }
+    
+    // Check cache if not forcing refresh
+    if (!forceRefresh && isCacheValid('stats')) {
+      console.log('💾 Using cached stats data');
+      return;
+    }
+    
     try {
+      inflightRequestsRef.current.add(requestKey);
       const response = await api.get('/progress/stats');
       setStats(response.data);
+      
+      // Update cache
+      requestCacheRef.current.stats = {
+        data: response.data,
+        timestamp: Date.now()
+      };
     } catch (error) {
-      console.error('Error fetching stats:', error);
+      console.error('❌ Error fetching stats:', error);
+    } finally {
+      inflightRequestsRef.current.delete(requestKey);
     }
   }, []);
 
   /**
-   * Fetch streaks
+   * Fetch streaks with deduplication and caching
    */
-  const fetchStreaks = useCallback(async () => {
+  const fetchStreaks = useCallback(async (forceRefresh = false) => {
+    const requestKey = 'streaks';
+    
+    // Check if request is already in-flight
+    if (inflightRequestsRef.current.has(requestKey)) {
+      console.log('⏳ Skipping duplicate streaks request');
+      return;
+    }
+    
+    // Check cache if not forcing refresh
+    if (!forceRefresh && isCacheValid('streaks')) {
+      console.log('💾 Using cached streaks data');
+      return;
+    }
+    
     try {
+      inflightRequestsRef.current.add(requestKey);
       const response = await api.get('/streaks');
       setStreaks(response.data.top10Streaks || []);
+      
+      // Update cache
+      requestCacheRef.current.streaks = {
+        data: response.data,
+        timestamp: Date.now()
+      };
     } catch (error) {
-      console.error('Error fetching streaks:', error);
+      console.error('❌ Error fetching streaks:', error);
+    } finally {
+      inflightRequestsRef.current.delete(requestKey);
     }
   }, []);
 
@@ -424,12 +535,22 @@ export const HabitProvider = ({ children }) => {
   }, [fetchDailyProgress, fetchStats, fetchStreaks]);
 
   /**
-   * Add new habit
+   * Add new habit - accepts optional createdForDate for date-specific creation
    */
   const addHabit = async (habitData) => {
     try {
-      const response = await api.post('/habits', habitData);
+      // Include the selected date so habits are created for the correct date
+      const payload = {
+        ...habitData,
+        createdForDate: getDateKeyFromDate(selectedDate)
+      };
+      
+      const response = await api.post('/habits', payload);
       setAllHabits([...allHabits, response.data]);
+      
+      // Invalidate habits cache
+      requestCacheRef.current.habits.timestamp = 0;
+      
       toast.success('Habit added successfully');
       return { success: true };
     } catch (error) {
@@ -649,44 +770,74 @@ export const HabitProvider = ({ children }) => {
     }
   };
 
-  // Load initial data on mount
+  // Load initial data on mount - ONCE only
   useEffect(() => {
-    console.log('🚀 App initialized - fetching habits...');
-    fetchHabits();
+    if (initialLoadDoneRef.current) return;
+    initialLoadDoneRef.current = true;
+    
+    console.log('🚀 App initialized - fetching initial data...');
     
     // Initialize lastDateKeyRef with current date
     lastDateKeyRef.current = getTodayDateKey();
-  }, [fetchHabits]);
+    
+    // Fetch all initial data in parallel
+    Promise.all([
+      fetchHabits(),
+      fetchDailyProgress(),
+      fetchStats(),
+      fetchStreaks()
+    ]);
+  }, []); // Empty deps - run once on mount
 
   /**
    * CRITICAL: Handle date changes (navigation or page load)
    * This ensures a COMPLETE RESET for every date.
-   * 
-   * RULE: progress.date MUST === selectedDate, otherwise discard
+   * DEBOUNCED to prevent rapid API calls during fast navigation.
    */
   useEffect(() => {
+    // Clear any pending debounce
+    if (dateChangeDebounceRef.current) {
+      clearTimeout(dateChangeDebounceRef.current);
+    }
+    
     const dateKey = getDateKeyFromDate(selectedDate);
     
-    console.log(`\n📅 ======= DATE CHANGED =======`);
-    console.log(`   New date: ${dateKey}`);
-    console.log(`   Clearing all progress state...`);
-    console.log(`=============================\n`);
+    // Skip if this is the initial load (handled by mount effect)
+    if (!initialLoadDoneRef.current) return;
     
-    // STEP 1: IMMEDIATELY clear current daily progress
-    // This prevents ANY visual carryover from previous date
-    setDailyProgress({});
+    // Debounce rapid date changes (300ms)
+    dateChangeDebounceRef.current = setTimeout(() => {
+      console.log(`\n📅 ======= DATE CHANGED =======`);
+      console.log(`   New date: ${dateKey}`);
+      console.log(`=============================\n`);
+      
+      // STEP 1: Check if we have cached data for this date
+      if (historicalProgress.hasOwnProperty(dateKey)) {
+        console.log(`💾 Using cached progress for ${dateKey}`);
+        setDailyProgress(historicalProgress[dateKey]);
+        setProgressResetKey(prev => prev + 1);
+      } else {
+        // STEP 2: Clear and fetch fresh data
+        setDailyProgress({});
+        setProgressResetKey(prev => prev + 1);
+        fetchDailyProgress(dateKey);
+      }
+      
+      // Stats and streaks don't need to refresh on every date change
+      // They are for "today" so only refresh if viewing today
+      const today = getTodayDateKey();
+      if (dateKey === today) {
+        fetchStats();
+        fetchStreaks();
+      }
+    }, 300);
     
-    // STEP 2: Clear stats and increment reset key
-    // This forces ALL derived UI state to recalculate
-    setStats(null);
-    setProgressResetKey(prev => prev + 1);
-    
-    // STEP 3: Fetch fresh data for the selected date
-    fetchDailyProgress();
-    fetchStats();
-    fetchStreaks();
-    
-  }, [selectedDate]); // Note: removed fetchX from deps to prevent loops
+    return () => {
+      if (dateChangeDebounceRef.current) {
+        clearTimeout(dateChangeDebounceRef.current);
+      }
+    };
+  }, [selectedDate]); // Only depend on selectedDate
 
   // GOLDEN RULE: dailyStats MUST recalculate when progress changes.
   // progressResetKey ensures stale memoized values are never used.
