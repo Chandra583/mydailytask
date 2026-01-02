@@ -1,5 +1,6 @@
 const Habit = require('../models/Habit');
 const { validationResult } = require('express-validator');
+const { archiveStreakOnHabitDeletion } = require('../services/streakSnapshotService');
 
 /**
  * @desc    Get all habits for a user (including archived for historical views)
@@ -127,30 +128,33 @@ const updateHabit = async (req, res) => {
 const deleteHabit = async (req, res) => {
   try {
     const habit = await Habit.findById(req.params.id);
-
+    
     if (!habit) {
       return res.status(404).json({ message: 'Habit not found' });
     }
-
-    // Check if habit belongs to user
+    
     if (habit.userId.toString() !== req.user._id.toString()) {
-      return res.status(401).json({ message: 'Not authorized' });
+      return res.status(403).json({ message: 'Not authorized' });
     }
-
-    // ARCHIVE: Set archivedAt to TODAY (not hard delete)
-    // This preserves historical data while hiding from current/future views
+    
+    // CRITICAL: Archive streak data BEFORE marking habit as inactive
+    await archiveStreakOnHabitDeletion(req.user._id, habit._id);
+    
+    // Now archive the habit
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Start of today
+    today.setHours(0, 0, 0, 0);
     
     habit.archivedAt = today;
     habit.isActive = false; // Also mark inactive for backwards compatibility
+    
     await habit.save();
-
+    
     res.json({ 
-      message: 'Habit archived successfully',
-      archivedAt: today
+      message: 'Habit archived successfully. Streak history preserved.',
+      archivedAt: habit.archivedAt 
     });
   } catch (error) {
+    console.error('Error deleting habit:', error);
     res.status(500).json({ message: error.message });
   }
 };

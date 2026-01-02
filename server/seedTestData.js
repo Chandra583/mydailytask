@@ -11,8 +11,8 @@ const axios = require('axios');
 const API_URL = 'https://mydailytask.vercel.app/api';
 
 // Login credentials
-const EMAIL = 'chandrashekhargawda2000@gmail.com';
-const PASSWORD = 'Ammaappa@1836';
+const EMAIL = 'chandrashekhargawda000@gmail.com';
+const PASSWORD = 'Aa!1234';
 
 // Create axios instance
 const api = axios.create({
@@ -111,33 +111,27 @@ async function seedData() {
       return;
     }
     
-    // Step 2: Generate Progress Data for last 45 days
-    console.log('\n📊 Generating progress data for last 45 days...');
+    // Step 2: Generate Progress Data for last 5 days (previous days only)
+    console.log('\n📊 Generating progress data for last 5 days (previous days only)...');
     
     const today = new Date();
     const timePeriods = ['morning', 'afternoon', 'evening', 'night'];
     let progressCount = 0;
     let errorCount = 0;
     
-    for (let daysAgo = 0; daysAgo < 45; daysAgo++) {
+    // Only add data for previous days (not today), so start from 1 to 5
+    for (let daysAgo = 1; daysAgo <= 5; daysAgo++) {
       const date = new Date(today);
       date.setDate(date.getDate() - daysAgo);
       const dateStr = formatDate(date);
       const dayOfWeek = date.getDay();
-      
-      // Skip some days randomly (simulate missed days)
-      if (daysAgo > 0 && Math.random() < 0.1) {
-        continue;
-      }
       
       for (let habitIndex = 0; habitIndex < createdHabits.length; habitIndex++) {
         const habit = createdHabits[habitIndex];
         
         // For each time period
         for (const period of timePeriods) {
-          // Skip some periods randomly
-          if (Math.random() < 0.2) continue;
-          
+          // Add data for all periods
           const percentage = getWeightedProgress(habitIndex, dayOfWeek);
           
           if (percentage > 0) {
@@ -157,9 +151,7 @@ async function seedData() {
       }
       
       // Progress indicator
-      if (daysAgo % 7 === 0) {
-        console.log(`   📅 Processed: ${dateStr} (${45 - daysAgo} days remaining)`);
-      }
+      console.log(`   📅 Processed: ${dateStr}`);
     }
     
     console.log(`\n✅ Created ${progressCount} progress entries`);
@@ -172,7 +164,7 @@ async function seedData() {
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log(`   Habits: ${createdHabits.length}`);
     console.log(`   Progress Entries: ${progressCount}`);
-    console.log(`   Date Range: Last 45 days`);
+    console.log('   Date Range: Previous 5 days');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
     console.log('You can now test the Weekly and Monthly views!');
     

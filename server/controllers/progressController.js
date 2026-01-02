@@ -3,6 +3,7 @@ const DailyProgress = require('../models/DailyProgress');
 const Habit = require('../models/Habit');
 const WeeklyStats = require('../models/WeeklyStats');
 const MonthlyStats = require('../models/MonthlyStats');
+const { createStreakSnapshot } = require('../services/streakSnapshotService');
 
 // Cache TTL in milliseconds (1 hour)
 const CACHE_TTL = 60 * 60 * 1000;
@@ -211,6 +212,28 @@ const updateDailyProgress = async (req, res) => {
       });
     }
 
+    // ALSO update legacy Progress model for streak calculation
+    const isCompleted = percentage === 100;
+    await Progress.findOneAndUpdate(
+      { 
+        userId: req.user._id, 
+        habitId, 
+        date: new Date(date) 
+      },
+      { 
+        completed: isCompleted,
+        userId: req.user._id,
+        habitId,
+        date: new Date(date)
+      },
+      { upsert: true }
+    );
+    
+    // CREATE/UPDATE STREAK SNAPSHOT when task is completed
+    if (isCompleted) {
+      await createStreakSnapshot(req.user._id, habitId, date);
+    }
+    
     res.json({
       habitId: dailyProgress.habitId,
       date: dailyProgress.date,
