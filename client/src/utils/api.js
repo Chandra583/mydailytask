@@ -62,10 +62,12 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Token expired or invalid - clear session storage
+      // Token expired or invalid - clear auth session storage
       sessionStorage.removeItem('token');
       sessionStorage.removeItem('user');
       sessionStorage.removeItem('loginTime');
+      sessionStorage.removeItem('debug');
+      // Redirect to login
       window.location.href = '/login';
     }
     return Promise.reject(error);

@@ -24,8 +24,11 @@ const getHabits = async (req, res) => {
  * @route   POST /api/habits
  * @access  Private
  * 
- * SUPPORTS: createdForDate parameter to create habits for specific dates
- * This allows users viewing a future/past date to create habits for that date.
+ * SUPPORTS: 
+ * - createdForDate: Create habits for specific dates
+ * - taskType: 'ongoing' (default) or 'daily' (one-time for specific day)
+ *   - ongoing: Shows every day from startDate until archived
+ *   - daily: Only shows on the specific startDate, auto-archives next day
  */
 const createHabit = async (req, res) => {
   const errors = validationResult(req);
@@ -33,18 +36,27 @@ const createHabit = async (req, res) => {
     return res.status(400).json({ errors: errors.array() });
   }
 
-  const { name, category, color, goal, createdForDate } = req.body;
+  const { name, category, color, goal, createdForDate, taskType = 'ongoing' } = req.body;
 
   try {
-    // If createdForDate is provided, use it as the createdAt date
-    // This allows habits to be "created" for specific dates (past or future)
-    let createdAt = new Date();
+    // Determine the start date for this habit
+    let startDate = new Date();
+    startDate.setHours(0, 0, 0, 0);
     
     if (createdForDate) {
       // Parse the date string (YYYY-MM-DD format)
       const [year, month, day] = createdForDate.split('-').map(Number);
-      createdAt = new Date(year, month - 1, day, 0, 0, 0);
+      startDate = new Date(year, month - 1, day, 0, 0, 0);
       console.log(`📅 Creating habit for specific date: ${createdForDate}`);
+    }
+    
+    // For 'daily' tasks, set archivedAt to the NEXT day (so it only shows on startDate)
+    let archivedAt = null;
+    if (taskType === 'daily') {
+      archivedAt = new Date(startDate);
+      archivedAt.setDate(archivedAt.getDate() + 1); // Next day
+      archivedAt.setHours(0, 0, 0, 0);
+      console.log(`📌 Daily task - will auto-archive on: ${archivedAt.toISOString()}`);
     }
     
     const habit = await Habit.create({
@@ -53,9 +65,13 @@ const createHabit = async (req, res) => {
       category: category || 'General',
       color: color || '#3b82f6',
       goal: goal || 'Daily',
-      createdAt: createdAt
+      taskType,
+      startDate,
+      archivedAt,
+      createdAt: startDate // Keep createdAt same as startDate for consistency
     });
 
+    console.log(`✅ Created ${taskType} habit: "${name}" starting ${startDate.toISOString().split('T')[0]}`);
     res.status(201).json(habit);
   } catch (error) {
     res.status(500).json({ message: error.message });

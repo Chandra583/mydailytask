@@ -263,11 +263,6 @@ const Dashboard = () => {
                 {/* PRESERVED: Active Streaks */}
                 <ActiveStreaks />
 
-                {/* PRESERVED: Smart Calendar - Compact on mobile */}
-                <div className="hidden sm:block">
-                  <SmartCalendar />
-                </div>
-
                 {/* HIDDEN: Habit Progress by Period - Commented out per user request */}
                 {/* <HabitProgressBars /> */}
                 

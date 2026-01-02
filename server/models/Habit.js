@@ -30,6 +30,14 @@ const habitSchema = new mongoose.Schema({
     default: 'Daily',
     enum: ['Daily', 'Weekly', 'Monthly']
   },
+  // TASK TYPE: 'ongoing' (default) or 'daily' (one-time for specific day)
+  // - ongoing: Shows every day from createdAt until archived
+  // - daily: Only shows on the specific createdAt date
+  taskType: {
+    type: String,
+    enum: ['ongoing', 'daily'],
+    default: 'ongoing'
+  },
   isActive: {
     type: Boolean,
     default: true
@@ -37,6 +45,13 @@ const habitSchema = new mongoose.Schema({
   // ARCHIVE SUPPORT: When set, task is hidden from this date onwards
   // but still visible for historical dates before archivedAt
   archivedAt: {
+    type: Date,
+    default: null
+  },
+  // START DATE: The date from which this task should be visible
+  // For ongoing tasks: shows from this date onwards
+  // For daily tasks: shows ONLY on this date
+  startDate: {
     type: Date,
     default: null
   },

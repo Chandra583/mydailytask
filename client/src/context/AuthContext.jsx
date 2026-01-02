@@ -26,12 +26,15 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   /**
-   * Logout function - clears session storage
+   * Logout function - clears auth-related session storage only
    */
   const logout = useCallback(() => {
+    // Clear only auth-related sessionStorage items
     sessionStorage.removeItem('token');
     sessionStorage.removeItem('user');
     sessionStorage.removeItem('loginTime');
+    // Also clear any debug items that might be stored
+    sessionStorage.removeItem('debug');
     setUser(null);
   }, []);
 

@@ -96,15 +96,12 @@ const TopHabitsChart = () => {
       </h3>
 
       {topHabits.length === 0 ? (
-        <div className="text-center py-8">
-          <div className="w-12 h-12 rounded-xl bg-gray-700/50 flex items-center justify-center mx-auto mb-3">
-            <Trophy size={24} className="text-gray-500" />
-          </div>
+        <div className="text-center py-4">
+          <Trophy size={24} className="text-gray-500 mx-auto mb-2" />
           <p className="text-gray-400 text-sm">No task data yet</p>
-          <p className="text-gray-500 text-xs mt-1">Complete some tasks to see rankings</p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-2">
           {topHabits.map((habit, index) => {
             const rankConfig = RANK_CONFIG[index];
             const RankIcon = rankConfig.icon;
@@ -112,17 +109,17 @@ const TopHabitsChart = () => {
             return (
               <div 
                 key={habit._id} 
-                className="glass-card-light p-3 rounded-xl transition-all hover:scale-[1.02] stagger-item"
+                className="glass-card-light p-2 rounded-lg transition-all hover:scale-[1.02] stagger-item"
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-3">
                     {/* Rank Badge */}
                     <div 
-                      className="w-8 h-8 rounded-lg flex items-center justify-center"
+                      className="w-6 h-6 rounded flex items-center justify-center"
                       style={{ backgroundColor: rankConfig.bgColor }}
                     >
-                      <RankIcon size={16} style={{ color: rankConfig.color }} />
+                      <RankIcon size={12} style={{ color: rankConfig.color }} />
                     </div>
                     
                     {/* Task Name */}
@@ -151,7 +148,7 @@ const TopHabitsChart = () => {
                 </div>
                 
                 {/* Progress Bar */}
-                <div className="h-2 bg-gray-700/50 rounded-full overflow-hidden mb-2">
+                <div className="h-1.5 bg-gray-700/50 rounded-full overflow-hidden mb-1">
                   <div 
                     className="h-full rounded-full transition-all duration-700 ease-out"
                     style={{ 

@@ -10,26 +10,14 @@ const HourlyActivityHeatmap = () => {
   const currentHour = new Date().getHours();
   const currentPeriod = getCurrentTimePeriod();
 
-  // Define hours with their periods
+  // Define hours with their periods - Compact version (6 key hours)
   const hourlyData = [
-    { hour: 6, label: '6 AM', period: 'morning' },
     { hour: 7, label: '7 AM', period: 'morning' },
-    { hour: 8, label: '8 AM', period: 'morning' },
     { hour: 9, label: '9 AM', period: 'morning' },
-    { hour: 10, label: '10 AM', period: 'morning' },
-    { hour: 11, label: '11 AM', period: 'morning' },
     { hour: 12, label: '12 PM', period: 'afternoon' },
-    { hour: 13, label: '1 PM', period: 'afternoon' },
-    { hour: 14, label: '2 PM', period: 'afternoon' },
     { hour: 15, label: '3 PM', period: 'afternoon' },
-    { hour: 16, label: '4 PM', period: 'afternoon' },
-    { hour: 17, label: '5 PM', period: 'afternoon' },
     { hour: 18, label: '6 PM', period: 'evening' },
-    { hour: 19, label: '7 PM', period: 'evening' },
-    { hour: 20, label: '8 PM', period: 'evening' },
     { hour: 21, label: '9 PM', period: 'evening' },
-    { hour: 22, label: '10 PM', period: 'night' },
-    { hour: 23, label: '11 PM', period: 'night' },
   ].map(h => {
     // Calculate activity based on period stats and hour
     const periodValue = dailyStats?.[h.period] || 0;
@@ -125,39 +113,26 @@ const HourlyActivityHeatmap = () => {
         })}
       </div>
 
-      {/* Legend */}
-      <div className="mt-4 pt-4 border-t border-gray-700">
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-gray-400 text-xs">Time Period Colors</span>
+      {/* Legend - Compact */}
+      <div className="mt-3 pt-3 border-t border-gray-700">
+        <div className="flex justify-between items-center text-xs">
+          <div className="flex gap-2">
+            {Object.values(TIME_PERIODS).map((period) => (
+              <div key={period.id} className="flex items-center gap-1">
+                <div 
+                  className="w-2 h-2 rounded"
+                  style={{ backgroundColor: period.color }}
+                ></div>
+                <span className="text-gray-400">{period.icon}</span>
+              </div>
+            ))}
+          </div>
           {peakHour && peakHour.activity > 0 && (
-            <span className="text-green-400 text-xs">
-              🏆 Peak: {peakHour.label} ({peakHour.activity}%)
+            <span className="text-green-400">
+              🏆 Peak: {peakHour.label}
             </span>
           )}
         </div>
-        <div className="flex justify-center gap-3">
-          {Object.values(TIME_PERIODS).map((period) => (
-            <div key={period.id} className="flex items-center gap-1">
-              <div 
-                className="w-3 h-3 rounded"
-                style={{ backgroundColor: period.color }}
-              ></div>
-              <span className="text-gray-400 text-xs">{period.icon}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Insights */}
-      <div className="mt-4 p-3 bg-primary-slate rounded-lg">
-        <p className="text-gray-400 text-xs flex items-center gap-2">
-          <span>💡</span>
-          <span>
-            {peakHour && peakHour.activity > 50 
-              ? `Your most productive hour is ${peakHour.label}. Schedule important tasks around this time!`
-              : 'Complete more tasks to discover your peak productivity hours.'}
-          </span>
-        </p>
       </div>
     </div>
   );

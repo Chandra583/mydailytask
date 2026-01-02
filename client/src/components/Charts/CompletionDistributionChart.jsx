@@ -94,28 +94,26 @@ const CompletionDistributionChart = () => {
         ))}
       </div>
 
-      {/* Summary */}
-      <div className="mt-4 pt-4 border-t border-gray-700">
-        <div className="flex justify-between items-center">
-          <span className="text-gray-400 text-sm">Total Tasks</span>
-          <span className="text-white font-bold text-lg">{habits.length}</span>
-        </div>
-        <div className="flex justify-between items-center mt-2">
-          <span className="text-gray-400 text-sm">Fully Complete</span>
-          <span className="text-green-400 font-bold">
-            {distribution.complete.count} ({getPercentage(distribution.complete.count)}%)
-          </span>
-        </div>
-        <div className="flex justify-between items-center mt-2">
-          <span className="text-gray-400 text-sm">Needs Attention</span>
-          <span className="text-red-400 font-bold">
-            {distribution.minimal.count + distribution.low.count}
-          </span>
+      {/* Summary - Compact */}
+      <div className="mt-3 pt-3 border-t border-gray-700">
+        <div className="flex justify-between items-center text-sm">
+          <div className="flex items-center gap-2">
+            <span className="text-gray-400">Total:</span>
+            <span className="text-white font-bold">{habits.length}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-gray-400">Complete:</span>
+            <span className="text-green-400 font-bold">{distribution.complete.count}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-gray-400">Needs work:</span>
+            <span className="text-red-400 font-bold">{distribution.minimal.count + distribution.low.count}</span>
+          </div>
         </div>
       </div>
 
       {/* Visual Breakdown */}
-      <div className="mt-4 flex gap-1 h-4 rounded-full overflow-hidden">
+      <div className="mt-3 flex gap-0.5 h-3 rounded-full overflow-hidden">
         {categories.map((category, index) => (
           category.count > 0 && (
             <div
@@ -131,9 +129,9 @@ const CompletionDistributionChart = () => {
         ))}
       </div>
 
-      {/* Legend */}
-      <div className="flex flex-wrap gap-2 mt-3 justify-center">
-        {categories.filter(c => c.count > 0).map((category, index) => (
+      {/* Legend - Compact single row */}
+      <div className="flex flex-wrap gap-2 mt-2 justify-center">
+        {categories.filter(c => c.count > 0).slice(0, 3).map((category, index) => (
           <div key={index} className="flex items-center gap-1">
             <div 
               className="w-2 h-2 rounded-full"

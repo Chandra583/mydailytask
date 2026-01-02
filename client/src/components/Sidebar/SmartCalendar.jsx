@@ -263,29 +263,18 @@ const SmartCalendar = () => {
         </div>
       )}
 
-      {/* Legend */}
-      <div className="mt-4 pt-4 border-t border-gray-700">
-        <div className="flex items-center justify-center gap-2 flex-wrap">
-          <span className="text-gray-400 text-xs">Less</span>
-          <div className="flex gap-1">
-            <div className="w-4 h-4 rounded" style={{ backgroundColor: '#374151' }} title="0%"></div>
-            <div className="w-4 h-4 rounded" style={{ backgroundColor: '#ef4444' }} title="1-24%"></div>
-            <div className="w-4 h-4 rounded" style={{ backgroundColor: '#f97316' }} title="25-49%"></div>
-            <div className="w-4 h-4 rounded" style={{ backgroundColor: '#fbbf24' }} title="50-74%"></div>
-            <div className="w-4 h-4 rounded" style={{ backgroundColor: '#4ade80' }} title="75-89%"></div>
-            <div className="w-4 h-4 rounded" style={{ backgroundColor: '#10b981' }} title="90-100%"></div>
+      {/* Legend - Compact */}
+      <div className="mt-3 pt-3 border-t border-gray-700">
+        <div className="flex items-center justify-center gap-1">
+          <span className="text-gray-500 text-xs">Less</span>
+          <div className="flex gap-0.5">
+            <div className="w-3 h-3 rounded" style={{ backgroundColor: '#374151' }}></div>
+            <div className="w-3 h-3 rounded" style={{ backgroundColor: '#ef4444' }}></div>
+            <div className="w-3 h-3 rounded" style={{ backgroundColor: '#fbbf24' }}></div>
+            <div className="w-3 h-3 rounded" style={{ backgroundColor: '#4ade80' }}></div>
+            <div className="w-3 h-3 rounded" style={{ backgroundColor: '#10b981' }}></div>
           </div>
-          <span className="text-gray-400 text-xs">More</span>
-        </div>
-        <div className="flex items-center justify-center gap-4 mt-2 text-xs text-gray-500">
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded ring-2 ring-cyan-400"></div>
-            <span>Today</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded opacity-40" style={{ backgroundColor: '#1e293b' }}></div>
-            <span>No data</span>
-          </div>
+          <span className="text-gray-500 text-xs">More</span>
         </div>
       </div>
     </div>

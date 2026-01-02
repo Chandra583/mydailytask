@@ -155,21 +155,50 @@ export const HabitProvider = ({ children }) => {
   }, []);
 
   /**
-   * ARCHIVE FILTER: Filter habits based on selectedDate vs archivedAt
-   * - If archivedAt is null → show the habit
-   * - If archivedAt exists AND selectedDate < archivedAt → show the habit (historical view)
-   * - If archivedAt exists AND selectedDate >= archivedAt → hide the habit
+   * ARCHIVE & DATE FILTER: Filter habits based on selectedDate, startDate, and archivedAt
+   * 
+   * ONGOING TASKS:
+   * - Show from startDate (or createdAt) onwards
+   * - Hide from archivedAt onwards
+   * 
+   * DAILY TASKS:
+   * - Only show on the exact startDate
+   * - archivedAt is automatically set to startDate+1 by backend
    */
   const habits = useMemo(() => {
-    const selectedDateStart = startOfDay(selectedDate);
+    // Get selected date as YYYY-MM-DD string for reliable comparison
+    const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
     
     return allHabits.filter(habit => {
-      // If not archived, always show
-      if (!habit.archivedAt) return true;
+      // Get habit start date as string (handles timezone issues)
+      let habitStartStr;
+      if (habit.startDate) {
+        habitStartStr = format(new Date(habit.startDate), 'yyyy-MM-dd');
+      } else if (habit.createdAt) {
+        habitStartStr = format(new Date(habit.createdAt), 'yyyy-MM-dd');
+      } else {
+        habitStartStr = '1970-01-01'; // Very old date if missing
+      }
+      
+      // RULE 1: Don't show before the habit's start date
+      if (selectedDateStr < habitStartStr) {
+        return false;
+      }
+      
+      // RULE 2: For daily tasks, only show on the exact start date
+      if (habit.taskType === 'daily') {
+        return selectedDateStr === habitStartStr;
+      }
+      
+      // RULE 3: For ongoing tasks, check archive status
+      // If not archived, show the habit
+      if (!habit.archivedAt) {
+        return true;
+      }
       
       // If archived, only show for dates BEFORE the archive date
-      const archivedDate = startOfDay(new Date(habit.archivedAt));
-      return selectedDateStart < archivedDate;
+      const archivedDateStr = format(new Date(habit.archivedAt), 'yyyy-MM-dd');
+      return selectedDateStr < archivedDateStr;
     });
   }, [allHabits, selectedDate]);
 
@@ -535,15 +564,19 @@ export const HabitProvider = ({ children }) => {
   }, [fetchDailyProgress, fetchStats, fetchStreaks]);
 
   /**
-   * Add new habit - accepts optional createdForDate for date-specific creation
+   * Add new habit - accepts optional createdForDate and taskType
+   * @param {Object} habitData - { name, color, taskType: 'ongoing'|'daily' }
    */
   const addHabit = async (habitData) => {
     try {
-      // Include the selected date so habits are created for the correct date
+      // Include the selected date and taskType
       const payload = {
         ...habitData,
-        createdForDate: getDateKeyFromDate(selectedDate)
+        createdForDate: getDateKeyFromDate(selectedDate),
+        taskType: habitData.taskType || 'ongoing'
       };
+      
+      console.log(`📌 Creating ${payload.taskType} habit: "${habitData.name}" for ${payload.createdForDate}`);
       
       const response = await api.post('/habits', payload);
       setAllHabits([...allHabits, response.data]);
@@ -551,7 +584,10 @@ export const HabitProvider = ({ children }) => {
       // Invalidate habits cache
       requestCacheRef.current.habits.timestamp = 0;
       
-      toast.success('Habit added successfully');
+      const message = payload.taskType === 'daily' 
+        ? 'One-time task added for today!'
+        : 'Ongoing task added successfully!';
+      toast.success(message);
       return { success: true };
     } catch (error) {
       toast.error('Failed to add habit');

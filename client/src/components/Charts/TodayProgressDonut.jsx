@@ -223,76 +223,39 @@ const TodayProgressDonut = ({ activeView = 'daily' }) => {
         </div>
       </div>
 
-      {/* Legend */}
-      <div className="space-y-2 mt-4">
-        <div className="flex items-center justify-between p-2 bg-primary-slate rounded-lg">
+      {/* Legend - Compact */}
+      <div className="space-y-1.5 mt-3">
+        <div className="flex items-center justify-between p-1.5 bg-primary-slate/50 rounded">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-[#4ade80]"></div>
-            <span className="text-white text-sm">{activeView === 'daily' ? '✓ Completed' : '✓ Days 80%+'}</span>
+            <div className="w-2 h-2 rounded-full bg-[#4ade80]"></div>
+            <span className="text-white text-xs">{activeView === 'daily' ? 'Completed' : '80%+'}</span>
           </div>
-          <span className="text-green-400 font-bold">{viewData.completed} {viewData.label}</span>
+          <span className="text-green-400 font-bold text-sm">{viewData.completed}</span>
         </div>
         
-        <div className="flex items-center justify-between p-2 bg-primary-slate rounded-lg">
+        <div className="flex items-center justify-between p-1.5 bg-primary-slate/50 rounded">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-[#fbbf24]"></div>
-            <span className="text-white text-sm">{activeView === 'daily' ? '○ In Progress' : '○ Days < 80%'}</span>
+            <div className="w-2 h-2 rounded-full bg-[#fbbf24]"></div>
+            <span className="text-white text-xs">{activeView === 'daily' ? 'In Progress' : '<80%'}</span>
           </div>
-          <span className="text-yellow-400 font-bold">{viewData.inProgress} {viewData.label}</span>
+          <span className="text-yellow-400 font-bold text-sm">{viewData.inProgress}</span>
         </div>
         
-        <div className="flex items-center justify-between p-2 bg-primary-slate rounded-lg">
+        <div className="flex items-center justify-between p-1.5 bg-primary-slate/50 rounded">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-[#374151]"></div>
-            <span className="text-white text-sm">{activeView === 'daily' ? '✗ Not Started' : '✗ No Data'}</span>
+            <div className="w-2 h-2 rounded-full bg-[#374151]"></div>
+            <span className="text-white text-xs">{activeView === 'daily' ? 'Not Started' : 'No Data'}</span>
           </div>
-          <span className="text-gray-400 font-bold">{viewData.notStarted} {viewData.label}</span>
+          <span className="text-gray-400 font-bold text-sm">{viewData.notStarted}</span>
         </div>
       </div>
 
-      {/* Summary */}
-      <div className="mt-4 pt-4 border-t border-gray-700">
-        <div className="grid grid-cols-3 gap-2 text-center">
-          <div>
-            <div className="text-2xl font-bold text-white">{viewData.totalItems}</div>
-            <div className="text-gray-400 text-xs">Total {viewData.label === 'tasks' ? 'Tasks' : 'Days'}</div>
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-green-400">{viewData.completed}</div>
-            <div className="text-gray-400 text-xs">{activeView === 'daily' ? 'Completed' : 'At 80%+'}</div>
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-yellow-400">{viewData.inProgress}</div>
-            <div className="text-gray-400 text-xs">{activeView === 'daily' ? 'In Progress' : 'Below 80%'}</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Progress Indicator */}
-      {overallPercentage >= 80 && activeView === 'daily' && isViewingToday && (
-        <div className="mt-4 p-3 bg-green-900 bg-opacity-30 rounded-lg border border-green-700">
-          <p className="text-green-400 text-sm text-center flex items-center justify-center gap-2">
-            <span>🎉</span>
-            Great progress today! Keep it up!
-          </p>
-        </div>
-      )}
-      
-      {overallPercentage >= 80 && activeView === 'weekly' && (
-        <div className="mt-4 p-3 bg-blue-900 bg-opacity-30 rounded-lg border border-blue-700">
-          <p className="text-blue-400 text-sm text-center flex items-center justify-center gap-2">
-            <span>🔥</span>
-            Excellent weekly performance!
-          </p>
-        </div>
-      )}
-      
-      {overallPercentage >= 80 && activeView === 'monthly' && (
-        <div className="mt-4 p-3 bg-purple-900 bg-opacity-30 rounded-lg border border-purple-700">
-          <p className="text-purple-400 text-sm text-center flex items-center justify-center gap-2">
-            <span>🏆</span>
-            Outstanding monthly consistency!
-          </p>
+      {/* Success Message - Only when 80%+ */}
+      {overallPercentage >= 80 && (
+        <div className="mt-3 p-2 bg-green-900/30 rounded text-center">
+          <span className="text-green-400 text-xs">
+            {activeView === 'daily' ? '🎉 Great progress!' : activeView === 'weekly' ? '🔥 Great week!' : '🏆 Great month!'}
+          </span>
         </div>
       )}
     </div>

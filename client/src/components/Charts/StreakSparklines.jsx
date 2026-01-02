@@ -130,32 +130,21 @@ const StreakSparklines = () => {
         </div>
       )}
 
-      {/* Legend */}
-      <div className="mt-4 pt-4 border-t border-gray-700">
-        <div className="flex justify-between text-xs text-gray-400">
-          <span>14 days ago</span>
-          <span>← Streak History →</span>
-          <span>Today</span>
-        </div>
-        <div className="flex justify-center gap-4 mt-2">
-          <div className="flex items-center gap-1">
-            <span>✨</span>
-            <span className="text-gray-400 text-xs">1-6 days</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span>🔥</span>
-            <span className="text-gray-400 text-xs">7-13 days</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span>🔥🔥</span>
-            <span className="text-gray-400 text-xs">14-29 days</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span>🔥🔥🔥</span>
-            <span className="text-gray-400 text-xs">30+ days</span>
+      {/* Legend - Compact */}
+      {streakData.length > 0 && (
+        <div className="mt-3 pt-3 border-t border-gray-700">
+          <div className="flex justify-between text-xs text-gray-500">
+            <span>14d ago</span>
+            <span className="flex items-center gap-2">
+              <span>✨ 1-6</span>
+              <span>🔥 7+</span>
+              <span>🔥🔥 14+</span>
+              <span>🔥🔥🔥 30+</span>
+            </span>
+            <span>Today</span>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

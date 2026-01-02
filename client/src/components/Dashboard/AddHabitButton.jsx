@@ -1,16 +1,19 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useHabit } from '../../context/HabitContext';
-import { Plus, Sparkles, X, Check, Palette, Command } from 'lucide-react';
+import { Plus, Sparkles, X, Check, Palette, Command, Flame, CalendarCheck, Info } from 'lucide-react';
 
 /**
  * Floating Add Task Button with Modal
- * Modern2026 design with Lucide icons and glassmorphism
+ * Supports two task types:
+ * - Ongoing: Shows every day from creation until archived (has streak tracking)
+ * - Daily: Only for the specific day, won't appear tomorrow
  */
 const AddHabitButton = () => {
-  const { addHabit } = useHabit();
+  const { addHabit, getFormattedDate } = useHabit();
   const [isOpen, setIsOpen] = useState(false);
   const [habitName, setHabitName] = useState('');
   const [habitColor, setHabitColor] = useState('#e91e63');
+  const [taskType, setTaskType] = useState('ongoing'); // 'ongoing' or 'daily'
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Keyboard shortcut: Ctrl+N to open
@@ -42,11 +45,13 @@ const AddHabitButton = () => {
     const result = await addHabit({
       name: habitName.trim(),
       color: habitColor,
+      taskType: taskType,
     });
 
     if (result.success) {
       setHabitName('');
       setHabitColor('#e91e63');
+      setTaskType('ongoing');
       setIsOpen(false);
     }
     setIsSubmitting(false);
@@ -132,8 +137,8 @@ const AddHabitButton = () => {
               </div>
 
               {/* Color Selection */}
-              <div className="mb-6">
-                <label className="label-text mb-3 flex items-center gap-2">
+              <div className="mb-4">
+                <label className="label-text mb-2 flex items-center gap-2">
                   <Palette size={14} />
                   Choose Color
                 </label>
@@ -143,7 +148,7 @@ const AddHabitButton = () => {
                       key={color}
                       type="button"
                       onClick={() => setHabitColor(color)}
-                      className={`w-10 h-10 rounded-xl transition-all duration-300 flex items-center justify-center ${
+                      className={`w-9 h-9 rounded-xl transition-all duration-300 flex items-center justify-center ${
                         habitColor === color 
                           ? 'ring-2 ring-white ring-offset-2 ring-offset-transparent scale-110' 
                           : 'hover:scale-105'
@@ -153,25 +158,101 @@ const AddHabitButton = () => {
                         boxShadow: habitColor === color ? `0 0 20px ${color}60` : 'none'
                       }}
                     >
-                      {habitColor === color && <Check size={18} className="text-white" />}
+                      {habitColor === color && <Check size={14} className="text-white" />}
                     </button>
                   ))}
                 </div>
               </div>
 
+              {/* Task Type Selection */}
+              <div className="mb-4">
+                <label className="label-text mb-2">Task Type</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {/* Ongoing Option */}
+                  <button
+                    type="button"
+                    onClick={() => setTaskType('ongoing')}
+                    className={`p-3 rounded-xl border-2 transition-all text-left ${
+                      taskType === 'ongoing'
+                        ? 'border-green-500 bg-green-500/10'
+                        : 'border-gray-600 hover:border-gray-500 bg-primary-slate/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <Flame size={16} className={taskType === 'ongoing' ? 'text-green-400' : 'text-gray-400'} />
+                      <span className={`font-medium text-sm ${
+                        taskType === 'ongoing' ? 'text-green-400' : 'text-gray-300'
+                      }`}>
+                        Ongoing
+                      </span>
+                    </div>
+                    <p className="text-gray-500 text-xs">
+                      🔥 Daily with streaks
+                    </p>
+                  </button>
+
+                  {/* Daily Option */}
+                  <button
+                    type="button"
+                    onClick={() => setTaskType('daily')}
+                    className={`p-3 rounded-xl border-2 transition-all text-left ${
+                      taskType === 'daily'
+                        ? 'border-blue-500 bg-blue-500/10'
+                        : 'border-gray-600 hover:border-gray-500 bg-primary-slate/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <CalendarCheck size={16} className={taskType === 'daily' ? 'text-blue-400' : 'text-gray-400'} />
+                      <span className={`font-medium text-sm ${
+                        taskType === 'daily' ? 'text-blue-400' : 'text-gray-300'
+                      }`}>
+                        Today Only
+                      </span>
+                    </div>
+                    <p className="text-gray-500 text-xs">
+                      📅 One-time task
+                    </p>
+                  </button>
+                </div>
+              </div>
+
+              {/* Info Message */}
+              <div className={`p-2 rounded-lg flex items-start gap-2 mb-4 ${
+                taskType === 'ongoing' 
+                  ? 'bg-green-900/20 border border-green-700/30' 
+                  : 'bg-blue-900/20 border border-blue-700/30'
+              }`}>
+                <Info size={14} className={taskType === 'ongoing' ? 'text-green-400 mt-0.5' : 'text-blue-400 mt-0.5'} />
+                <p className={`text-xs ${
+                  taskType === 'ongoing' ? 'text-green-300' : 'text-blue-300'
+                }`}>
+                  {taskType === 'ongoing' 
+                    ? 'Appears daily. Complete to build streaks!'
+                    : `Only for today (${getFormattedDate()}).`
+                  }
+                </p>
+              </div>
+
               {/* Preview */}
-              <div className="mb-6 glass-card-light p-4 rounded-xl">
-                <p className="label-text mb-2">Preview:</p>
-                <div className="flex items-center gap-3">
+              <div className="mb-4 glass-card-light p-3 rounded-xl">
+                <p className="label-text mb-1 text-xs">Preview:</p>
+                <div className="flex items-center gap-2">
                   <div 
-                    className="w-5 h-5 rounded-lg"
+                    className="w-4 h-4 rounded-lg"
                     style={{ 
                       backgroundColor: habitColor,
                       boxShadow: `0 0 12px ${habitColor}40`
                     }}
                   ></div>
-                  <span className="text-white font-medium">
+                  <span className="text-white font-medium text-sm">
                     {habitName || 'Your new task'}
+                  </span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${
+                    taskType === 'ongoing' 
+                      ? 'bg-green-500/20 text-green-400' 
+                      : 'bg-blue-500/20 text-blue-400'
+                  }`}>
+                    {taskType === 'ongoing' ? '🔥' : '📅'}
                   </span>
                 </div>
               </div>
