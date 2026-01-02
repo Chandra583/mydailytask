@@ -1,85 +1,95 @@
-const Progress = require('../models/Progress');
+const DailyProgress = require('../models/DailyProgress');
 const Habit = require('../models/Habit');
 
 /**
+ * Helper: Get today's date in local format (YYYY-MM-DD)
+ */
+const getLocalDateKey = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+/**
  * Calculate streak for a habit
+ * GOLDEN RULE: A day is "completed" if ANY period = 100%
  * @param {String} userId - User ID
  * @param {String} habitId - Habit ID
  * @returns {Object} Streak information
  */
 const calculateStreak = async (userId, habitId) => {
   try {
-    // Get all completed progress entries for this habit, sorted by date descending
-    const progressEntries = await Progress.find({
+    // Get all progress entries for this habit, sorted by date descending
+    const progressEntries = await DailyProgress.find({
       userId,
-      habitId,
-      completed: true
+      habitId
     }).sort({ date: -1 });
 
     if (progressEntries.length === 0) {
       return { currentStreak: 0, longestStreak: 0 };
     }
 
-    let currentStreak = 0;
-    let longestStreak = 0;
-    let tempStreak = 1;
+    // Filter to only "completed" days (ANY period = 100%)
+    const completedDays = progressEntries.filter(p => {
+      return (p.morning === 100 || p.afternoon === 100 || p.evening === 100 || p.night === 100);
+    }).map(p => p.date).sort((a, b) => b.localeCompare(a)); // Sort descending
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    // Check if streak is current (includes today or yesterday)
-    const latestDate = new Date(progressEntries[0].date);
-    latestDate.setHours(0, 0, 0, 0);
-    
-    const isCurrentStreak = latestDate >= yesterday;
-
-    if (isCurrentStreak) {
-      currentStreak = 1;
-      
-      // Calculate current streak
-      for (let i = 1; i < progressEntries.length; i++) {
-        const currentDate = new Date(progressEntries[i - 1].date);
-        currentDate.setHours(0, 0, 0, 0);
-        
-        const previousDate = new Date(progressEntries[i].date);
-        previousDate.setHours(0, 0, 0, 0);
-        
-        const diffDays = Math.floor((currentDate - previousDate) / (1000 * 60 * 60 * 24));
-        
-        if (diffDays === 1) {
-          currentStreak++;
-        } else {
-          break;
-        }
-      }
+    if (completedDays.length === 0) {
+      return { currentStreak: 0, longestStreak: 0 };
     }
 
-    // Calculate longest streak
-    longestStreak = tempStreak;
-    for (let i = 1; i < progressEntries.length; i++) {
-      const currentDate = new Date(progressEntries[i - 1].date);
-      currentDate.setHours(0, 0, 0, 0);
-      
-      const previousDate = new Date(progressEntries[i].date);
-      previousDate.setHours(0, 0, 0, 0);
-      
-      const diffDays = Math.floor((currentDate - previousDate) / (1000 * 60 * 60 * 24));
-      
-      if (diffDays === 1) {
+    const today = getLocalDateKey();
+    const yesterday = getLocalDateKey(new Date(Date.now() - 24 * 60 * 60 * 1000));
+
+    let currentStreak = 0;
+    let longestStreak = 0;
+    let tempStreak = 0;
+
+    // Check if the most recent completed day is today or yesterday
+    const latestCompletedDate = completedDays[0];
+    const isCurrentStreak = (latestCompletedDate === today || latestCompletedDate === yesterday);
+
+    // Calculate streaks by going through dates
+    // Group by consecutive days
+    let checkDate = latestCompletedDate;
+    
+    for (const dateStr of completedDays) {
+      if (dateStr === checkDate) {
         tempStreak++;
-        longestStreak = Math.max(longestStreak, tempStreak);
+        // Move to previous day
+        const d = new Date(checkDate + 'T00:00:00');
+        d.setDate(d.getDate() - 1);
+        checkDate = getLocalDateKey(d);
       } else {
+        // Streak broken - check if this starts a new streak
+        if (tempStreak > longestStreak) {
+          longestStreak = tempStreak;
+        }
+        if (isCurrentStreak && currentStreak === 0) {
+          currentStreak = tempStreak;
+        }
+        // Start new streak count
         tempStreak = 1;
+        checkDate = dateStr;
+        const d = new Date(checkDate + 'T00:00:00');
+        d.setDate(d.getDate() - 1);
+        checkDate = getLocalDateKey(d);
       }
+    }
+    
+    // Final check for longest streak
+    if (tempStreak > longestStreak) {
+      longestStreak = tempStreak;
+    }
+    if (isCurrentStreak && currentStreak === 0) {
+      currentStreak = tempStreak;
     }
 
     return { 
       currentStreak, 
       longestStreak,
-      lastCompletedDate: progressEntries[0].date
+      lastCompletedDate: latestCompletedDate
     };
   } catch (error) {
     console.error('Error calculating streak:', error);
@@ -91,13 +101,14 @@ const calculateStreak = async (userId, habitId) => {
  * @desc    Get active streaks for all habits
  * @route   GET /api/streaks
  * @access  Private
+ * 
+ * GOLDEN RULE: A day is "completed" if ANY period = 100%
  */
 const getStreaks = async (req, res) => {
   try {
-    // Get all active habits for user
+    // Get all habits for user (include archived for streak history)
     const habits = await Habit.find({ 
-      userId: req.user._id, 
-      isActive: true 
+      userId: req.user._id
     });
 
     // Calculate streaks for each habit
@@ -131,6 +142,7 @@ const getStreaks = async (req, res) => {
       top10Streaks
     });
   } catch (error) {
+    console.error('Streak error:', error);
     res.status(500).json({ message: error.message });
   }
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, isBefore, isAfter, startOfDay } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, isAfter, startOfDay } from 'date-fns';
 import { useHabit } from '../../context/HabitContext';
 import { Calendar, Clock, Sun, Sunrise, Sunset, Moon } from 'lucide-react';
 
@@ -23,8 +23,6 @@ const SmartCalendar = () => {
     dailyStats,
     dailyProgress,
     fetchProgressForDate,
-    isBeforeUserStart,
-    userStartDate,
     progressResetKey
   } = useHabit();
 
@@ -39,21 +37,23 @@ const SmartCalendar = () => {
   const startDayOfWeek = monthStart.getDay();
   const emptyDays = Array(startDayOfWeek).fill(null);
 
-  // Fetch progress data for all visible days
+  // Fetch progress data for all visible days in the month
   useEffect(() => {
     const fetchMonthData = async () => {
       for (const day of days) {
-        if (!isAfter(day, new Date()) && !isBeforeUserStart(day)) {
+        // Fetch for past and today only (not future)
+        if (!isAfter(day, new Date())) {
           const dateKey = format(day, 'yyyy-MM-dd');
           await fetchProgressForDate(dateKey);
         }
       }
     };
     fetchMonthData();
-  }, [days, fetchProgressForDate, isBeforeUserStart]);
+  }, [days, fetchProgressForDate]);
 
   // Calculate completion for a specific date
-  // GOLDEN RULE: For TODAY, use dailyStats (derived from dailyProgress), NOT historicalProgress
+  // GOLDEN RULE: A task is COMPLETE if ANY period = 100%
+  // Daily % = (completed tasks / total tasks) * 100
   const getCompletionForDay = useCallback((date) => {
     const today = startOfDay(new Date());
     const dateKey = format(date, 'yyyy-MM-dd');
@@ -63,57 +63,55 @@ const SmartCalendar = () => {
       return { completion: 0, isFuture: true };
     }
     
-    // Before user started
-    if (isBeforeUserStart(date)) {
-      return { completion: 0, isBeforeStart: true };
-    }
-    
-    // GOLDEN RULE: For today, use dailyStats/dailyProgress, NOT historicalProgress
+    // GOLDEN RULE: For today, use dailyStats (derived from dailyProgress), NOT historicalProgress
     if (isToday(date)) {
       return { completion: dailyStats?.overall || 0, isToday: true };
     }
     
-    // Past dates - use historical progress
+    // Past dates - use historical progress with GOLDEN RULE
     const progress = historicalProgress[dateKey];
     if (!progress || Object.keys(progress).length === 0) {
-      return { completion: 0 };
+      return { completion: 0, hasNoData: true };
     }
     
-    let total = 0;
-    let count = 0;
+    // Count completed tasks (ANY period = 100%)
+    let completedTasks = 0;
+    let totalTasks = Object.keys(progress).length;
     let periodCompletion = { morning: 0, afternoon: 0, evening: 0, night: 0 };
-    let periodCount = { morning: 0, afternoon: 0, evening: 0, night: 0 };
     
     Object.values(progress).forEach(p => {
-      total += (p.morning || 0) + (p.afternoon || 0) + (p.evening || 0) + (p.night || 0);
-      count += 4;
+      // A task is complete if ANY period is 100%
+      if ((p.morning || 0) === 100 || 
+          (p.afternoon || 0) === 100 || 
+          (p.evening || 0) === 100 || 
+          (p.night || 0) === 100) {
+        completedTasks++;
+      }
+      // Track individual period averages for tooltip
       periodCompletion.morning += p.morning || 0;
       periodCompletion.afternoon += p.afternoon || 0;
       periodCompletion.evening += p.evening || 0;
       periodCompletion.night += p.night || 0;
-      periodCount.morning += 1;
-      periodCount.afternoon += 1;
-      periodCount.evening += 1;
-      periodCount.night += 1;
     });
     
-    const overallCompletion = count > 0 ? Math.round(total / count) : 0;
+    const overallCompletion = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
     
     return {
       completion: overallCompletion,
-      taskCount: Object.keys(progress).length,
+      completedTasks,
+      taskCount: totalTasks,
       periods: {
-        morning: periodCount.morning > 0 ? Math.round(periodCompletion.morning / periodCount.morning) : 0,
-        afternoon: periodCount.afternoon > 0 ? Math.round(periodCompletion.afternoon / periodCount.afternoon) : 0,
-        evening: periodCount.evening > 0 ? Math.round(periodCompletion.evening / periodCount.evening) : 0,
-        night: periodCount.night > 0 ? Math.round(periodCompletion.night / periodCount.night) : 0,
+        morning: totalTasks > 0 ? Math.round(periodCompletion.morning / totalTasks) : 0,
+        afternoon: totalTasks > 0 ? Math.round(periodCompletion.afternoon / totalTasks) : 0,
+        evening: totalTasks > 0 ? Math.round(periodCompletion.evening / totalTasks) : 0,
+        night: totalTasks > 0 ? Math.round(periodCompletion.night / totalTasks) : 0,
       }
     };
-  }, [historicalProgress, dailyStats, dailyProgress, isBeforeUserStart, progressResetKey]);
+  }, [historicalProgress, dailyStats, dailyProgress, progressResetKey]);
 
   // Get color based on completion percentage
-  const getColorByCompletion = (percentage, isBeforeStart = false, isFuture = false) => {
-    if (isBeforeStart || isFuture) return { bg: '#1e293b', text: 'text-gray-600' }; // Dark gray
+  const getColorByCompletion = (percentage, isFuture = false) => {
+    if (isFuture) return { bg: '#1e293b', text: 'text-gray-600' }; // Dark gray for future
     if (percentage === 0) return { bg: '#374151', text: 'text-gray-500' }; // No tasks/data
     if (percentage < 25) return { bg: '#ef4444', text: 'text-white' }; // Red - poor
     if (percentage < 50) return { bg: '#f97316', text: 'text-white' }; // Orange - below average
@@ -170,7 +168,7 @@ const SmartCalendar = () => {
         {/* Actual days */}
         {days.map((day) => {
           const data = getCompletionForDay(day);
-          const colorStyle = getColorByCompletion(data.completion, data.isBeforeStart, data.isFuture);
+          const colorStyle = getColorByCompletion(data.completion, data.isFuture);
           const isCurrentDay = isToday(day);
           const isSelected = isSameDay(day, selectedDate);
 
@@ -182,7 +180,7 @@ const SmartCalendar = () => {
               } ${
                 isSelected ? 'ring-2 ring-accent-pink' : ''
               } ${
-                data.isBeforeStart || data.isFuture ? 'opacity-40' : ''
+                data.isFuture ? 'opacity-40' : ''
               }`}
               style={{ backgroundColor: colorStyle.bg }}
               onMouseEnter={(e) => handleMouseEnter(e, day, data)}
@@ -212,8 +210,8 @@ const SmartCalendar = () => {
             {format(hoveredDate.date, 'EEEE')}
           </div>
           
-          {hoveredDate.data.isBeforeStart ? (
-            <div className="text-gray-500 text-xs">Before you started - no data</div>
+          {hoveredDate.data.hasNoData ? (
+            <div className="text-gray-500 text-xs">No data recorded</div>
           ) : hoveredDate.data.isFuture ? (
             <div className="text-gray-500 text-xs">Future date - no data yet</div>
           ) : (

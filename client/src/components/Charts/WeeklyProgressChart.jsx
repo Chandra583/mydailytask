@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
+  AreaChart,
+  Area,
   BarChart, 
   Bar, 
   XAxis, 
@@ -7,9 +9,10 @@ import {
   Tooltip, 
   ResponsiveContainer, 
   Cell,
-  ReferenceLine
+  ReferenceLine,
+  CartesianGrid
 } from 'recharts';
-import { ChevronLeft, ChevronRight, Calendar, Trophy, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, Trophy, Loader2, TrendingUp } from 'lucide-react';
 import api from '../../utils/api';
 
 /**
@@ -102,6 +105,18 @@ const WeeklyProgressChart = () => {
   const isCurrentWeek = currentWeekStart === getStartOfWeek(new Date());
   const canGoNext = !isCurrentWeek;
 
+  // Get today's date for filtering future days
+  const todayStr = formatDate(new Date());
+
+  // Filter data for AreaChart - only show days up to today (use null for future)
+  const chartData = weekData?.days?.map(day => {
+    // If date is in the future, set progress to null so line doesn't connect
+    if (day.date > todayStr) {
+      return { ...day, progress: null, isFuture: true };
+    }
+    return { ...day, isFuture: false };
+  }) || [];
+
   // Get color based on completion percentage
   const getBarColor = (completion, isToday) => {
     if (completion >= 90) return '#4ade80'; // Bright green
@@ -109,6 +124,44 @@ const WeeklyProgressChart = () => {
     if (completion >= 50) return '#fb923c'; // Orange
     if (completion > 0) return '#ef4444'; // Red
     return '#374151'; // No data gray
+  };
+
+  const CustomAreaTooltip = ({ active, payload }) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      
+      // Don't show tooltip for future days
+      if (data.isFuture) {
+        return (
+          <div className="bg-primary-slate p-3 rounded-lg shadow-lg border border-gray-600">
+            <p className="text-gray-400 font-bold">
+              {data.dayName}, {data.date}
+            </p>
+            <p className="text-gray-500 text-sm">Future - no data yet</p>
+          </div>
+        );
+      }
+      
+      return (
+        <div className="bg-primary-slate p-3 rounded-lg shadow-lg border border-gray-600">
+          <p className="text-white font-bold">
+            {data.dayName}, {data.date}
+          </p>
+          <p className="text-2xl font-bold" style={{ color: getBarColor(data.progress, false) }}>
+            {data.progress}%
+          </p>
+          {data.completedTasks !== undefined && (
+            <p className="text-gray-400 text-xs mt-1">
+              {data.completedTasks}/{data.totalTasks} tasks completed
+            </p>
+          )}
+          {data.isToday && (
+            <p className="text-pink-400 text-xs mt-1">Today</p>
+          )}
+        </div>
+      );
+    }
+    return null;
   };
 
   const CustomTooltip = ({ active, payload }) => {
@@ -196,6 +249,107 @@ const WeeklyProgressChart = () => {
           )}
           <div className="text-gray-400 text-xs uppercase">Weekly Average</div>
           <div className="text-2xl font-bold text-white">{weekData.weeklyAverage}%</div>
+        </div>
+      </div>
+
+      {/* Main Trend Chart (AreaChart like Daily) */}
+      <div className="mb-6">
+        <div className="flex items-center gap-2 mb-3">
+          <TrendingUp size={16} className="text-emerald-400" />
+          <span className="text-gray-400 text-xs uppercase">Weekly Trend</span>
+        </div>
+        <div className="h-48">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart
+              data={chartData}
+              margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+            >
+              <defs>
+                <linearGradient id="weeklyGradient" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#06b6d4" stopOpacity={0.9} />
+                  <stop offset="50%" stopColor="#8b5cf6" stopOpacity={0.9} />
+                  <stop offset="100%" stopColor="#ec4899" stopOpacity={0.9} />
+                </linearGradient>
+                <linearGradient id="weeklyFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#06b6d4" stopOpacity={0.6} />
+                  <stop offset="50%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                  <stop offset="100%" stopColor="#ec4899" stopOpacity={0.1} />
+                </linearGradient>
+                <filter id="weeklyGlow">
+                  <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                  <feMerge>
+                    <feMergeNode in="coloredBlur"/>
+                    <feMergeNode in="SourceGraphic"/>
+                  </feMerge>
+                </filter>
+              </defs>
+              
+              <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.5} />
+              
+              <XAxis 
+                dataKey="dayName"
+                tick={{ fill: '#9ca3af', fontSize: 11 }}
+                axisLine={{ stroke: '#374151' }}
+                tickLine={false}
+              />
+              
+              <YAxis 
+                domain={[0, 100]}
+                tick={{ fill: '#9ca3af', fontSize: 11 }}
+                axisLine={{ stroke: '#374151' }}
+                tickLine={false}
+                tickFormatter={(value) => `${value}%`}
+              />
+              
+              <Tooltip content={<CustomAreaTooltip />} />
+              
+              <ReferenceLine 
+                y={80} 
+                stroke="#22c55e" 
+                strokeDasharray="5 5" 
+                label={{ value: 'Goal', fill: '#22c55e', fontSize: 10, position: 'right' }} 
+              />
+              
+              <Area
+                type="natural"
+                dataKey="progress"
+                stroke="url(#weeklyGradient)"
+                strokeWidth={3}
+                fill="url(#weeklyFill)"
+                connectNulls={false}
+                animationDuration={800}
+                dot={(props) => {
+                  const { cx, cy, payload } = props;
+                  // Don't show dots for future days
+                  if (payload.isFuture || payload.progress === null) {
+                    return null;
+                  }
+                  // Pulsing dot for today (like DailyProgressTrendChart)
+                  if (payload.isToday) {
+                    return (
+                      <g>
+                        <circle cx={cx} cy={cy} r={10} fill="#ec4899" opacity={0.3} />
+                        <circle cx={cx} cy={cy} r={6} fill="#ec4899" stroke="#fff" strokeWidth={2} />
+                        <circle cx={cx} cy={cy} r={14} fill="none" stroke="#ec4899" strokeWidth={1} opacity={0.5}>
+                          <animate attributeName="r" from="8" to="18" dur="1.5s" repeatCount="indefinite" />
+                          <animate attributeName="opacity" from="0.8" to="0" dur="1.5s" repeatCount="indefinite" />
+                        </circle>
+                      </g>
+                    );
+                  }
+                  if (payload.progress >= 90) {
+                    return <circle cx={cx} cy={cy} r={5} fill="#4ade80" stroke="#fff" strokeWidth={2} />;
+                  }
+                  if (payload.progress >= 70) {
+                    return <circle cx={cx} cy={cy} r={4} fill="#fbbf24" stroke="#fff" strokeWidth={1} />;
+                  }
+                  return <circle cx={cx} cy={cy} r={3} fill="#8b5cf6" stroke="#fff" strokeWidth={1} />;
+                }}
+                activeDot={{ r: 8, fill: '#ec4899', stroke: '#fff', strokeWidth: 3, filter: 'url(#weeklyGlow)' }}
+                style={{ filter: 'url(#weeklyGlow)' }}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
         </div>
       </div>
 

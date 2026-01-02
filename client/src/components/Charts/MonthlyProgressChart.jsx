@@ -1,5 +1,15 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Calendar, Trophy, Flame, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceLine,
+  CartesianGrid
+} from 'recharts';
+import { ChevronLeft, ChevronRight, Calendar, Trophy, Flame, Loader2, TrendingUp } from 'lucide-react';
 import api from '../../utils/api';
 
 /**
@@ -98,6 +108,103 @@ const MonthlyProgressChart = () => {
     return '#fff';
   };
 
+  // For current month, show DAILY data (more granular)
+  // For past months, show WEEKLY averages
+  const isViewingCurrentMonth = useMemo(() => {
+    const now = new Date();
+    return currentMonth.year === now.getFullYear() && currentMonth.month === now.getMonth() + 1;
+  }, [currentMonth]);
+
+  // Create daily trend data for current month (shows each day up to today)
+  const dailyTrendData = useMemo(() => {
+    if (!monthData?.dailyProgress || !isViewingCurrentMonth) return [];
+    
+    const today = new Date();
+    const todayDay = today.getDate();
+    
+    return monthData.dailyProgress.map(d => {
+      const dayNum = parseInt(d.day) || 0;
+      const isFuture = dayNum > todayDay;
+      const isToday = dayNum === todayDay;
+      
+      return {
+        label: d.day,
+        fullDate: d.date,
+        progress: isFuture ? null : (d.hasData ? d.progress : 0),
+        isFuture,
+        isToday,
+        hasData: d.hasData,
+      };
+    });
+  }, [monthData, isViewingCurrentMonth]);
+
+  // Create weekly trend data from daily progress (for past months)
+  const weeklyTrendData = useMemo(() => {
+    if (!monthData?.dailyProgress || isViewingCurrentMonth) return [];
+    
+    const weeks = [];
+    const days = monthData.dailyProgress;
+    const numWeeks = Math.ceil(days.length / 7);
+    
+    for (let i = 0; i < numWeeks; i++) {
+      const weekStart = i * 7;
+      const weekEnd = Math.min(weekStart + 7, days.length);
+      const weekDays = days.slice(weekStart, weekEnd);
+      
+      const daysWithData = weekDays.filter(d => d.hasData);
+      const weekAvg = daysWithData.length > 0
+        ? Math.round(daysWithData.reduce((sum, d) => sum + d.progress, 0) / daysWithData.length)
+        : 0;
+      
+      const firstDay = weekDays[0]?.day || '';
+      const lastDay = weekDays[weekDays.length - 1]?.day || '';
+      
+      weeks.push({
+        label: `W${i + 1}`,
+        weekLabel: `${firstDay}-${lastDay}`,
+        progress: weekAvg,
+        daysCompleted: daysWithData.filter(d => d.progress >= 80).length,
+        totalDays: weekDays.length,
+        isFuture: false,
+      });
+    }
+    
+    return weeks;
+  }, [monthData, isViewingCurrentMonth]);
+
+  // Choose which data to use for the chart
+  const trendChartData = isViewingCurrentMonth ? dailyTrendData : weeklyTrendData;
+
+  const CustomAreaTooltip = ({ active, payload }) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      
+      if (data.isFuture) {
+        return (
+          <div className="bg-primary-slate p-3 rounded-lg shadow-lg border border-gray-600">
+            <p className="text-gray-400 font-bold">Day {data.label}</p>
+            <p className="text-gray-500 text-sm">Future - no data yet</p>
+          </div>
+        );
+      }
+      
+      return (
+        <div className="bg-primary-slate p-3 rounded-lg shadow-lg border border-gray-600">
+          <p className="text-white font-bold">
+            {isViewingCurrentMonth ? `Day ${data.label}` : `Week ${data.label?.replace('W', '')} (${data.weekLabel})`}
+          </p>
+          <p className="text-2xl font-bold" style={{ color: getHeatmapColor(data.progress, true) }}>
+            {data.progress}%
+          </p>
+          {data.isToday && (
+            <p className="text-pink-400 text-xs mt-1">Today</p>
+          )}
+        </div>
+      );
+    }
+    return null;
+  };
+
   if (loading) {
     return (
       <div className="glass-card p-6 flex items-center justify-center h-96">
@@ -177,6 +284,109 @@ const MonthlyProgressChart = () => {
           )}
           <div className="text-gray-400 text-xs uppercase">Monthly Average</div>
           <div className="text-2xl font-bold text-white">{monthData.monthlyAverage}%</div>
+        </div>
+      </div>
+
+      {/* Main Trend Chart (AreaChart like Daily) */}
+      <div className="mb-6">
+        <div className="flex items-center gap-2 mb-3">
+          <TrendingUp size={16} className="text-purple-400" />
+          <span className="text-gray-400 text-xs uppercase">
+            {isViewingCurrentMonth ? 'Daily Progress This Month' : 'Monthly Trend (Weekly Averages)'}
+          </span>
+        </div>
+        <div className="h-48">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart
+              data={trendChartData}
+              margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+            >
+              <defs>
+                <linearGradient id="monthlyGradient" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#a855f7" stopOpacity={0.9} />
+                  <stop offset="50%" stopColor="#ec4899" stopOpacity={0.9} />
+                  <stop offset="100%" stopColor="#f97316" stopOpacity={0.9} />
+                </linearGradient>
+                <linearGradient id="monthlyFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#a855f7" stopOpacity={0.6} />
+                  <stop offset="50%" stopColor="#ec4899" stopOpacity={0.3} />
+                  <stop offset="100%" stopColor="#f97316" stopOpacity={0.1} />
+                </linearGradient>
+                <filter id="monthlyGlow">
+                  <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                  <feMerge>
+                    <feMergeNode in="coloredBlur"/>
+                    <feMergeNode in="SourceGraphic"/>
+                  </feMerge>
+                </filter>
+              </defs>
+              
+              <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.5} />
+              
+              <XAxis 
+                dataKey="label"
+                tick={{ fill: '#9ca3af', fontSize: 10 }}
+                axisLine={{ stroke: '#374151' }}
+                tickLine={false}
+                interval={isViewingCurrentMonth ? 2 : 0}
+              />
+              
+              <YAxis 
+                domain={[0, 100]}
+                tick={{ fill: '#9ca3af', fontSize: 11 }}
+                axisLine={{ stroke: '#374151' }}
+                tickLine={false}
+                tickFormatter={(value) => `${value}%`}
+              />
+              
+              <Tooltip content={<CustomAreaTooltip />} />
+              
+              <ReferenceLine 
+                y={80} 
+                stroke="#22c55e" 
+                strokeDasharray="5 5" 
+                label={{ value: 'Goal', fill: '#22c55e', fontSize: 10, position: 'right' }} 
+              />
+              
+              <Area
+                type="natural"
+                dataKey="progress"
+                stroke="url(#monthlyGradient)"
+                strokeWidth={3}
+                fill="url(#monthlyFill)"
+                connectNulls={false}
+                animationDuration={800}
+                dot={(props) => {
+                  const { cx, cy, payload } = props;
+                  if (payload.isFuture || payload.progress === null) {
+                    return null;
+                  }
+                  // Pulsing dot for today
+                  if (payload.isToday) {
+                    return (
+                      <g>
+                        <circle cx={cx} cy={cy} r={10} fill="#ec4899" opacity={0.3} />
+                        <circle cx={cx} cy={cy} r={6} fill="#ec4899" stroke="#fff" strokeWidth={2} />
+                        <circle cx={cx} cy={cy} r={14} fill="none" stroke="#ec4899" strokeWidth={1} opacity={0.5}>
+                          <animate attributeName="r" from="8" to="18" dur="1.5s" repeatCount="indefinite" />
+                          <animate attributeName="opacity" from="0.8" to="0" dur="1.5s" repeatCount="indefinite" />
+                        </circle>
+                      </g>
+                    );
+                  }
+                  if (payload.progress >= 90) {
+                    return <circle cx={cx} cy={cy} r={5} fill="#22c55e" stroke="#fff" strokeWidth={2} />;
+                  }
+                  if (payload.progress >= 70) {
+                    return <circle cx={cx} cy={cy} r={4} fill="#a855f7" stroke="#fff" strokeWidth={1} />;
+                  }
+                  return <circle cx={cx} cy={cy} r={3} fill="#6366f1" stroke="#fff" strokeWidth={1} />;
+                }}
+                activeDot={{ r: 8, fill: '#ec4899', stroke: '#fff', strokeWidth: 3, filter: 'url(#monthlyGlow)' }}
+                style={{ filter: 'url(#monthlyGlow)' }}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
         </div>
       </div>
 

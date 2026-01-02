@@ -202,7 +202,7 @@ const Dashboard = () => {
                 <LeftInfoPanel />
                 
                 {/* PRESERVED: Today's Progress Donut Chart */}
-                <TodayProgressDonut />
+                <TodayProgressDonut activeView="daily" />
                 
                 {/* HIDDEN: Goals vs Actual Widget - Commented out per user request */}
                 {/* <GoalsVsActualChart /> */}
@@ -294,7 +294,7 @@ const Dashboard = () => {
               
               {/* Side Widgets */}
               <div className="lg:col-span-4 space-y-4">
-                <TodayProgressDonut />
+                <TodayProgressDonut activeView="weekly" />
                 <ActiveStreaks />
                 <TopHabitsChart />
                 <div className="hidden lg:block">
@@ -318,7 +318,7 @@ const Dashboard = () => {
               
               {/* Side Widgets */}
               <div className="lg:col-span-4 space-y-4">
-                <TodayProgressDonut />
+                <TodayProgressDonut activeView="monthly" />
                 <ActiveStreaks />
                 <StreakSparklines />
                 {/* HabitConsistencyHeatmap hidden per user request */}
