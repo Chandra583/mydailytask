@@ -44,18 +44,7 @@ const WeeklyOverviewChart = () => {
     setError(null);
     try {
       const weekStart = getStartOfWeek(new Date());
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/d5edf7f6-514f-4bb3-8251-880135d8f785',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WeeklyOverviewChart.jsx:47',message:'Fetching weekly data from backend',data:{weekStart},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
-      // #endregion
-      
       const response = await api.get(`/progress/weekly/${weekStart}`);
-      
-      // #region agent log
-      const todayData = response.data.days.find(d => d.isToday);
-      fetch('http://127.0.0.1:7242/ingest/d5edf7f6-514f-4bb3-8251-880135d8f785',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WeeklyOverviewChart.jsx:57',message:'Backend response received',data:{weeklyAverage:response.data.weeklyAverage,todayProgress:todayData?.progress,todayCompleted:todayData?.completedTasks,todayTotal:todayData?.totalTasks},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
-      // #endregion
-      
       setWeekData(response.data);
     } catch (err) {
       console.error('Failed to fetch weekly progress:', err);
@@ -74,11 +63,6 @@ const WeeklyOverviewChart = () => {
     if (weekData) {
       // Update today's progress from dailyStats
       const today = format(new Date(), 'yyyy-MM-dd');
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/d5edf7f6-514f-4bb3-8251-880135d8f785',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WeeklyOverviewChart.jsx:68',message:'Updating today progress from dailyStats',data:{today,dailyStatsOverall:dailyStats?.overall,beforeUpdate:weekData.days.find(d=>d.date===today)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
-      // #endregion
-      
       setWeekData(prev => ({
         ...prev,
         days: prev.days.map(d => 
@@ -87,10 +71,6 @@ const WeeklyOverviewChart = () => {
             : d
         )
       }));
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/d5edf7f6-514f-4bb3-8251-880135d8f785',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WeeklyOverviewChart.jsx:79',message:'After updating today progress',data:{today,afterUpdate:weekData.days.find(d=>d.date===today)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
-      // #endregion
     }
   }, [dailyStats?.overall]);
 
