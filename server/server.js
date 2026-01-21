@@ -9,6 +9,7 @@ const authRoutes = require('./routes/authRoutes');
 const habitRoutes = require('./routes/habitRoutes');
 const progressRoutes = require('./routes/progressRoutes');
 const streakRoutes = require('./routes/streakRoutes');
+const streakHistoryRoutes = require('./routes/streakHistoryRoutes');
 const notesRoutes = require('./routes/notesRoutes');
 
 // Initialize express app
@@ -67,11 +68,17 @@ app.use('/static', express.static(path.join(__dirname, 'public')));
 // Connect to MongoDB
 connectDB();
 
+// Optional: Schedule daily streak snapshots (requires node-cron package)
+// Uncomment the lines below after installing node-cron: npm install node-cron
+// const { scheduleDailySnapshots } = require('./jobs/dailyStreakSnapshot');
+// scheduleDailySnapshots();
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/habits', habitRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/streaks', streakRoutes);
+app.use('/api/streak-history', streakHistoryRoutes);
 app.use('/api/notes', notesRoutes);
 
 // Root endpoint

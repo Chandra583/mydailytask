@@ -41,6 +41,7 @@ import HabitProgressBars from '../components/Sidebar/HabitProgressBars';
 // Other
 import AddHabitButton from '../components/Dashboard/AddHabitButton';
 import ViewSwitcher from '../components/Dashboard/ViewSwitcher';
+import StandingTimer from '../components/Dashboard/StandingTimer';
 
 /**
  * HYBRID Dashboard Layout with RESPONSIVE DESIGN
@@ -170,6 +171,13 @@ const Dashboard = () => {
               <ViewSwitcher currentView={currentView} onViewChange={handleViewChange} />
             </div>
           </div>
+        </div>
+
+        {/* ========================================
+            STANDING TIMER - Pomodoro-style health reminder
+            ======================================== */}
+        <div className="mb-4 animate-fadeIn">
+          <StandingTimer />
         </div>
       </div>
 

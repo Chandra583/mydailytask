@@ -396,9 +396,10 @@ const getWeeklyProgress = async (req, res) => {
       }
     }
 
-    // Get all habits for user (active and archived)
+    // Get all ACTIVE habits for user (exclude archived)
     const habits = await Habit.find({ 
-      userId: req.user._id 
+      userId: req.user._id,
+      isActive: true
     });
 
     // Get all progress entries for the week
@@ -418,6 +419,11 @@ const getWeeklyProgress = async (req, res) => {
       const dateStr = addDays(weekStart, i);
       const dayProgress = progressData.filter(p => p.date === dateStr);
       
+      // #region agent log
+      const fs = require('fs');
+      fs.appendFileSync('c:\\Users\\Chandrashekar\\Desktop\\habittracker\\.cursor\\debug.log', JSON.stringify({location:'progressController.js:419',message:'Processing day in weekly overview',data:{dateStr,isToday:dateStr===today,dayProgressCount:dayProgress.length,totalHabits:habits.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'}) + '\n');
+      // #endregion
+      
       // Count tasks completed (ANY period = 100%)
       let completedTasks = 0;
       
@@ -428,6 +434,11 @@ const getWeeklyProgress = async (req, res) => {
             (p.evening || 0) === 100 || 
             (p.night || 0) === 100) {
           completedTasks++;
+          // #region agent log
+          if (dateStr === today) {
+            fs.appendFileSync('c:\\Users\\Chandrashekar\\Desktop\\habittracker\\.cursor\\debug.log', JSON.stringify({location:'progressController.js:435',message:'TODAY task marked complete in backend',data:{habitId:p.habitId.toString(),dateStr,morning:p.morning,afternoon:p.afternoon,evening:p.evening,night:p.night},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'}) + '\n');
+          }
+          // #endregion
         }
       });
       
@@ -435,6 +446,12 @@ const getWeeklyProgress = async (req, res) => {
       // Use total habits count, not just habits with progress on this day
       const totalTasks = habits.length;
       const dayCompletionPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+      
+      // #region agent log
+      if (dateStr === today) {
+        fs.appendFileSync('c:\\Users\\Chandrashekar\\Desktop\\habittracker\\.cursor\\debug.log', JSON.stringify({location:'progressController.js:451',message:'TODAY backend calculation result',data:{dateStr,completedTasks,totalTasks,dayCompletionPercent},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'}) + '\n');
+      }
+      // #endregion
       
       days.push({
         date: dateStr,

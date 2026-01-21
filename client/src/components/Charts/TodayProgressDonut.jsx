@@ -72,6 +72,10 @@ const TodayProgressDonut = ({ activeView = 'daily' }) => {
     let inProgress = 0;     // Some progress but no 100%
     let notStarted = 0;     // ALL periods at 0%
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/d5edf7f6-514f-4bb3-8251-880135d8f785',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TodayProgressDonut.jsx:75',message:'Starting taskStatus calculation',data:{totalHabits:habits.length,resetKey:progressResetKey},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
+
     habits.forEach(habit => {
       const progress = dailyProgress[habit._id] || {};
       const morning = progress.morning || 0;
@@ -82,6 +86,9 @@ const TodayProgressDonut = ({ activeView = 'daily' }) => {
       // COMPLETED: ANY period is 100%
       if (morning === 100 || afternoon === 100 || evening === 100 || night === 100) {
         completed++;
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/d5edf7f6-514f-4bb3-8251-880135d8f785',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TodayProgressDonut.jsx:88',message:'Task marked COMPLETED',data:{habitId:habit._id,habitName:habit.name,morning,afternoon,evening,night},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+        // #endregion
       } 
       // Not started: ALL periods are 0%
       else if (morning === 0 && afternoon === 0 && evening === 0 && night === 0) {
@@ -92,6 +99,11 @@ const TodayProgressDonut = ({ activeView = 'daily' }) => {
         inProgress++;
       }
     });
+
+    // #region agent log
+    const percentage = habits.length > 0 ? Math.round((completed / habits.length) * 100) : 0;
+    fetch('http://127.0.0.1:7242/ingest/d5edf7f6-514f-4bb3-8251-880135d8f785',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TodayProgressDonut.jsx:105',message:'TODAY PROGRESS calculation complete',data:{completed,inProgress,notStarted,totalHabits:habits.length,percentage},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
 
     return { completed, inProgress, notStarted };
   }, [habits, dailyProgress, progressResetKey]);

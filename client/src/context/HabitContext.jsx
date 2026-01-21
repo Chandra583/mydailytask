@@ -88,6 +88,7 @@ export const HabitProvider = ({ children }) => {
   const [historicalProgress, setHistoricalProgress] = useState({});
   const [stats, setStats] = useState(null);
   const [streaks, setStreaks] = useState([]);
+  const [archivedStreaks, setArchivedStreaks] = useState([]);
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -127,6 +128,7 @@ export const HabitProvider = ({ children }) => {
     habits: { data: null, timestamp: 0 },
     stats: { data: null, timestamp: 0 },
     streaks: { data: null, timestamp: 0 },
+    archivedStreaks: { data: null, timestamp: 0 },
   });
   
   // Cache TTL in milliseconds (5 minutes for stats/streaks)
@@ -520,6 +522,41 @@ export const HabitProvider = ({ children }) => {
   }, []);
 
   /**
+   * Fetch archived streaks (from deleted tasks)
+   */
+  const fetchArchivedStreaks = useCallback(async (forceRefresh = false) => {
+    const requestKey = 'archivedStreaks';
+    
+    // Check if request is already in-flight
+    if (inflightRequestsRef.current.has(requestKey)) {
+      console.log('⏳ Skipping duplicate archived streaks request');
+      return;
+    }
+    
+    // Check cache if not forcing refresh
+    if (!forceRefresh && isCacheValid('archivedStreaks')) {
+      console.log('💾 Using cached archived streaks data');
+      return;
+    }
+    
+    try {
+      inflightRequestsRef.current.add(requestKey);
+      const response = await api.get('/streak-history/archived');
+      setArchivedStreaks(response.data || []);
+      
+      // Update cache
+      requestCacheRef.current.archivedStreaks = {
+        data: response.data,
+        timestamp: Date.now()
+      };
+    } catch (error) {
+      console.error('❌ Error fetching archived streaks:', error);
+    } finally {
+      inflightRequestsRef.current.delete(requestKey);
+    }
+  }, []);
+
+  /**
    * Update current time every minute AND detect day changes (midnight crossover)
    * CRITICAL: Auto-resets ALL state when a new day begins
    * NOTE: This useEffect MUST be placed AFTER fetchDailyProgress, fetchStats, fetchStreaks are defined
@@ -821,7 +858,8 @@ export const HabitProvider = ({ children }) => {
       fetchHabits(),
       fetchDailyProgress(),
       fetchStats(),
-      fetchStreaks()
+      fetchStreaks(),
+      fetchArchivedStreaks()
     ]);
   }, []); // Empty deps - run once on mount
 
@@ -889,6 +927,7 @@ export const HabitProvider = ({ children }) => {
     historicalProgress,
     stats,
     streaks,
+    archivedStreaks,
     notes,
     loading,
     currentTime,
@@ -916,6 +955,7 @@ export const HabitProvider = ({ children }) => {
     fetchHabits,
     fetchDailyProgress,
     fetchProgressForDate,
+    fetchArchivedStreaks,
     addHabit,
     updateHabit,
     deleteHabit,
